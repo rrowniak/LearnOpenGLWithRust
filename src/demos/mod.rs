@@ -36,22 +36,22 @@ static DEMO5: demo5::Demo5 = demo5::Demo5 {
 
 static DEMO6: demo6::DemoN = demo6::DemoN {
     name: "demo6",
-    description: "Learn OpenGL - Graphics Programming ('Getting started'): lighting",
+    description: "Learn OpenGL - Graphics Programming ('Lighting'): lighting",
 };
 
 static DEMO7: demo7::DemoN = demo7::DemoN {
     name: "demo7",
-    description: "Learn OpenGL - Graphics Programming ('Getting started'): lighting Phong",
+    description: "Learn OpenGL - Graphics Programming ('Lighting'): lighting Phong",
 };
 
 static DEMO8: demo8::DemoN = demo8::DemoN {
     name: "demo8",
-    description: "Learn OpenGL - Graphics Programming ('Getting started'): lighting - materials",
+    description: "Learn OpenGL - Graphics Programming ('Lighting'): lighting - materials",
 };
 
 static DEMO9: demo9::DemoN = demo9::DemoN {
     name: "demo9",
-    description: "Learn OpenGL - Graphics Programming ('Getting started'): lighting maps",
+    description: "Learn OpenGL - Graphics Programming ('Lighting'): lighting maps",
 };
 
 pub trait Demo {
