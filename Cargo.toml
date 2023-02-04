@@ -1,0 +1,21 @@
+[package]
+name = "open_gl"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bytemuck = "1"
+#gl33 = { version = "0.2.1", features = ["global_loader"]}
+gl33 = { path = "./external/gl33" }
+ultraviolet = { version = "0.9", features = [ "f64", "int" ] }
+# beryllium = "0.9"
+# imagine = "0.2"
+#fermium = "22401.1.0"
+fermium = { path = "./external/fermium", features = ["static_bundled_build"] }
+stb_image = "0.2"
+glm = "0.2"
+gl_loader = "0.1.2"
+
+[dev-dependencies]
