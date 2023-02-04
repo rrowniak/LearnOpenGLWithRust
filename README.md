@@ -92,3 +92,7 @@ You should get:
 `OpenGL core profile version string: 4.6 (Core Profile) Mesa 22.2.5`
 
 The minimum required version is OpenGL 3.3.
+
+## Credits
+
+This repository is based on examples from the book "Learn OpenGL - Graphics Programming" by Joey de Vries. The code in this repository has been adapted and refactored to be written in the Rust programming language. The book can be found at [LearnOpenGL](https://learnopengl.com/).
