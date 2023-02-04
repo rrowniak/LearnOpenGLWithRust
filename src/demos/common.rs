@@ -204,26 +204,12 @@ impl SimplestCubeObj {
 
             gl.BindBuffer(GL_ARRAY_BUFFER, vbo);
 
-            gl.BufferData(
-                GL_ARRAY_BUFFER,
-                std::mem::size_of_val(&data) as isize,
-                data.as_ptr().cast(),
-                GL_STATIC_DRAW,
-            );
+            gl_buffer_data_arr_stat(gl, &data);
 
             gl.BindVertexArray(vao);
 
             // position attribute
-            gl.VertexAttribPointer(
-                0,
-                3,
-                gl33::GL_FLOAT,
-                0,
-                3 * std::mem::size_of::<f32>() as i32,
-                std::ptr::null(),
-            );
-
-            gl.EnableVertexAttribArray(0);
+            gl_vertex_attrib_ptr_enab(gl, 0, 3, 3, 0);
         }
 
         Ok(SimplestCubeObj {
@@ -240,15 +226,7 @@ impl SimplestCubeObj {
 
             gl.BindBuffer(GL_ARRAY_BUFFER, self.vbo);
 
-            gl.VertexAttribPointer(
-                0,
-                3,
-                gl33::GL_FLOAT,
-                0,
-                3 * std::mem::size_of::<f32>() as i32,
-                std::ptr::null(),
-            );
-            gl.EnableVertexAttribArray(0);
+            gl_vertex_attrib_ptr_enab(gl, 0, 3, 3, 0);
         }
 
         self.vaos.push(vao);
@@ -330,50 +308,18 @@ impl NormTexCubeObj {
 
             gl.BindBuffer(GL_ARRAY_BUFFER, vbo);
 
-            gl.BufferData(
-                GL_ARRAY_BUFFER,
-                std::mem::size_of_val(&data) as isize,
-                data.as_ptr().cast(),
-                GL_STATIC_DRAW,
-            );
+            gl_buffer_data_arr_stat(gl, &data);
 
             gl.BindVertexArray(vao);
 
             // position attribute
-            gl.VertexAttribPointer(
-                0,
-                3,
-                gl33::GL_FLOAT,
-                0,
-                8 * std::mem::size_of::<f32>() as i32,
-                std::ptr::null(),
-            );
-
-            gl.EnableVertexAttribArray(0);
+            gl_vertex_attrib_ptr_enab(gl, 0, 3, 8, 0);
 
             // normals attribute
-            gl.VertexAttribPointer(
-                1,
-                3,
-                gl33::GL_FLOAT,
-                0,
-                8 * std::mem::size_of::<f32>() as i32,
-                (3 * std::mem::size_of::<f32>()) as *const _,
-            );
-
-            gl.EnableVertexAttribArray(1);
+            gl_vertex_attrib_ptr_enab(gl, 1, 3, 8, 3);
 
             // tex coords attribute
-            gl.VertexAttribPointer(
-                2,
-                2,
-                gl33::GL_FLOAT,
-                0,
-                8 * std::mem::size_of::<f32>() as i32,
-                (6 * std::mem::size_of::<f32>()) as *const _,
-            );
-
-            gl.EnableVertexAttribArray(2);
+            gl_vertex_attrib_ptr_enab(gl, 2, 2, 8, 6);
         }
 
         Ok(NormTexCubeObj {
@@ -390,15 +336,14 @@ impl NormTexCubeObj {
 
             gl.BindBuffer(GL_ARRAY_BUFFER, self.vbo);
 
-            gl.VertexAttribPointer(
-                0,
-                3,
-                gl33::GL_FLOAT,
-                0,
-                8 * std::mem::size_of::<f32>() as i32,
-                std::ptr::null(),
-            );
-            gl.EnableVertexAttribArray(0);
+            // position attribute
+            gl_vertex_attrib_ptr_enab(gl, 0, 3, 8, 0);
+
+            // normals attribute
+            gl_vertex_attrib_ptr_enab(gl, 1, 3, 8, 3);
+
+            // tex coords attribute
+            gl_vertex_attrib_ptr_enab(gl, 2, 2, 8, 6);
         }
 
         self.vaos.push(vao);

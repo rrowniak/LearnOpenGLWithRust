@@ -13,7 +13,7 @@ The following is a list of the currently implemented examples:
 - `demo6`: Covers basic lighting from the "Lighting" section of the book.
 - `demo7`: Covers Phong lighting from the "Lighting" section of the book.
 - `demo8`: Covers materials in lighting from the "Lighting" section of the book.
-- `demo9`: Covers lighting maps from the "Lighting" section of the book.
+- `demo9`: Covers lighting maps (diffuse and specular) from the "Lighting" section of the book.
 
 More coming soon!
 
@@ -61,7 +61,7 @@ sudo apt install mesa-utils
 ### OpenGL on Ubuntu with Dual Graphics Cards
 If you have issues with OpenGL on Ubuntu with dual graphics cards, you can check which vendor's graphics card is active by running the following command:
 ```
-$ glxinfo | grep OpenGL
+glxinfo | grep OpenGL
 ```
 You may see either
 ```
@@ -74,12 +74,12 @@ OpenGL vendor string: Intel
 
 To check which graphics card is currently active, run the following command:
 ```
-$ sudo prime-select query
+sudo prime-select query
 ```
 
 If you want to switch to the NVidia graphics card, run the following command:
 ```
-$ sudo prime-select nvidia
+sudo prime-select nvidia
 ```
 
 ### Problem with OpenGL: Version Not Supported
