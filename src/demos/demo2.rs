@@ -1,8 +1,6 @@
 use super::common::*;
 use crate::demos::Demo;
-use crate::gfx::shaders::Shaders;
-use crate::gfx::system;
-use crate::gfx::utils::*;
+use crate::gfx::{glutils::*, shaders::Shaders, system};
 use std::time::Instant;
 
 pub struct Demo2 {

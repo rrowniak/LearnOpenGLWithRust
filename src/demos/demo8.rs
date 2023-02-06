@@ -1,9 +1,7 @@
 use super::common::*;
 use crate::demos::Demo;
 use crate::gfx::camera::{CamMovement, Camera};
-use crate::gfx::shaders::Shaders;
-use crate::gfx::system::IoEvents;
-use crate::gfx::{system, utils};
+use crate::gfx::{glutils::*, shaders::Shaders, system, system::IoEvents, utils::*};
 use std::time::Instant;
 use ultraviolet::*;
 
@@ -74,7 +72,7 @@ impl DemoImpl {
         }
     }
     fn init(&mut self, system: &system::System) -> Result<(), String> {
-        utils::print_opengl_info(&system.gl);
+        print_opengl_info(&system.gl);
 
         self.lighting_shader =
             Shaders::from_files(&system.gl, "./demo/demo7_lig.vs", "./demo/demo7_lig.fs")?;

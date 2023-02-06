@@ -1,5 +1,6 @@
-use super::utils;
+use super::glutils;
 use gl33::*;
+use std::ffi::CString;
 use std::fs;
 
 #[derive(Default)]
@@ -114,12 +115,17 @@ impl Shaders {
             panic!("get_uniform_location: CString::new failed for '{}'", name);
         });
 
+        self.get_uniform_location_cstr(gl, &c_name)
+    }
+
+    fn get_uniform_location_cstr(&self, gl: &GlFns, c_name: &CString) -> i32 {
         let location;
         unsafe {
             location = gl.GetUniformLocation(self.program_id, c_name.as_ptr().cast());
         }
-        utils::check_gl_err(gl);
+        glutils::check_gl_err(gl);
         if location == -1 {
+            let name = c_name.to_str().unwrap_or("<cstring decoding error>");
             panic!(
                 "program({}): location '{}' does not correspond to an active uniform variable in program",
                 self.program_id,
@@ -131,12 +137,18 @@ impl Shaders {
 
     pub fn use_program(&self, gl: &GlFns) {
         gl.UseProgram(self.program_id);
-        utils::check_gl_err(gl);
+        glutils::check_gl_err(gl);
     }
 
     pub fn set_bool(&self, gl: &GlFns, name: &str, value: bool) {
         unsafe {
             gl.Uniform1i(self.get_uniform_location(gl, name), i32::from(value));
+        }
+    }
+
+    pub fn set_bool_cstr(&self, gl: &GlFns, name: &CString, value: bool) {
+        unsafe {
+            gl.Uniform1i(self.get_uniform_location_cstr(gl, name), i32::from(value));
         }
     }
 
@@ -146,9 +158,21 @@ impl Shaders {
         }
     }
 
+    pub fn set_i32_cstr(&self, gl: &GlFns, name: &CString, value: i32) {
+        unsafe {
+            gl.Uniform1i(self.get_uniform_location_cstr(gl, name), value);
+        }
+    }
+
     pub fn set_f32(&self, gl: &GlFns, name: &str, value: f32) {
         unsafe {
             gl.Uniform1f(self.get_uniform_location(gl, name), value);
+        }
+    }
+
+    pub fn set_f32_cstr(&self, gl: &GlFns, name: &CString, value: f32) {
+        unsafe {
+            gl.Uniform1f(self.get_uniform_location_cstr(gl, name), value);
         }
     }
 
@@ -158,9 +182,21 @@ impl Shaders {
         }
     }
 
+    pub fn set_vec3_cstr(&self, gl: &GlFns, name: &CString, v0: f32, v1: f32, v2: f32) {
+        unsafe {
+            gl.Uniform3f(self.get_uniform_location_cstr(gl, name), v0, v1, v2);
+        }
+    }
+
     pub fn set_vec4(&self, gl: &GlFns, name: &str, v0: f32, v1: f32, v2: f32, v3: f32) {
         unsafe {
             gl.Uniform4f(self.get_uniform_location(gl, name), v0, v1, v2, v3);
+        }
+    }
+
+    pub fn set_vec4_cstr(&self, gl: &GlFns, name: &CString, v0: f32, v1: f32, v2: f32, v3: f32) {
+        unsafe {
+            gl.Uniform4f(self.get_uniform_location_cstr(gl, name), v0, v1, v2, v3);
         }
     }
 
@@ -172,7 +208,6 @@ impl Shaders {
                 mat.c1[3], mat.c2[0], mat.c2[1], mat.c2[2], mat.c2[3], mat.c3[0], mat.c3[1],
                 mat.c3[2], mat.c3[3],
             ];
-            // gl.Uniform4fv(location, 1, arr.as_ptr().cast());
             gl.UniformMatrix4fv(location, 1, gl33::GL_FALSE.0 as u8, arr.as_ptr().cast());
         }
     }
@@ -180,7 +215,13 @@ impl Shaders {
     pub fn set_mat4fv_uv(&self, gl: &GlFns, name: &str, mat: &ultraviolet::Mat4) {
         let location = self.get_uniform_location(gl, name);
         unsafe {
-            // gl.Uniform4fv(location, 1, arr.as_ptr().cast());
+            gl.UniformMatrix4fv(location, 1, gl33::GL_FALSE.0 as u8, mat.as_slice().as_ptr());
+        }
+    }
+
+    pub fn set_mat4fv_uv_cstr(&self, gl: &GlFns, name: &CString, mat: &ultraviolet::Mat4) {
+        let location = self.get_uniform_location_cstr(gl, name);
+        unsafe {
             gl.UniformMatrix4fv(location, 1, gl33::GL_FALSE.0 as u8, mat.as_slice().as_ptr());
         }
     }

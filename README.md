@@ -1,5 +1,5 @@
 # Learn OpenGL in Rust
-This repository contains examples from the excellent book *"Learn OpenGL - Graphics Programming" by Joey de Vries* written in Rust programming language. These examples are not an exact match with the ones in the book, but rather experiments and refactored results.
+This repository contains examples based on the excellent book *"Learn OpenGL - Graphics Programming" by Joey de Vries*. The code in this repository reimplements the concepts from the book using the Rust programming language and includes experiments and refactored results.
 
 Note: This code has only been tested on Linux.
 
@@ -14,6 +14,7 @@ The following is a list of the currently implemented examples:
 - `demo7`: Covers Phong lighting from the "Lighting" section of the book.
 - `demo8`: Covers materials in lighting from the "Lighting" section of the book.
 - `demo9`: Covers lighting maps (diffuse and specular) from the "Lighting" section of the book.
+- `demo10`: Covers light casters from the "Lighting" section of the book.
 
 More coming soon!
 
@@ -95,4 +96,4 @@ The minimum required version is OpenGL 3.3.
 
 ## Credits
 
-This repository is based on examples from the book "Learn OpenGL - Graphics Programming" by Joey de Vries. The code in this repository has been adapted and refactored to be written in the Rust programming language. The book can be found at [LearnOpenGL](https://learnopengl.com/).
+This repository is based on the book "Learn OpenGL - Graphics Programming" by Joey de Vries. The code in this repository has been adapted and refactored to be written in the Rust programming language. The book can be found at [LearnOpenGL](https://learnopengl.com/).

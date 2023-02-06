@@ -1,6 +1,5 @@
 use crate::demos::Demo;
-use crate::gfx::shaders::Shaders;
-use crate::gfx::system;
+use crate::gfx::{glutils::*, shaders::Shaders, system};
 use super::common::*;
 use std::time::Instant;
 

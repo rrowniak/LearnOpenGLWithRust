@@ -1,7 +1,6 @@
 use super::common::*;
 use crate::demos::Demo;
-use crate::gfx::shaders::Shaders;
-use crate::gfx::system;
+use crate::gfx::{glutils::*, shaders::Shaders, system};
 use gl33::*;
 use std::time::Instant;
 

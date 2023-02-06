@@ -1,10 +1,7 @@
 use super::common::*;
 use crate::demos::Demo;
 use crate::gfx::camera::{CamMovement, Camera};
-use crate::gfx::shaders::Shaders;
-use crate::gfx::system;
-use crate::gfx::system::IoEvents;
-use crate::gfx::utils;
+use crate::gfx::{glutils::*, shaders::Shaders, system, system::IoEvents, utils::*};
 use std::time::Instant;
 use ultraviolet::*;
 
@@ -106,7 +103,7 @@ impl DemoImpl {
         }
     }
     fn init(&mut self, system: &system::System) -> Result<(), String> {
-        utils::print_opengl_info(&system.gl);
+        print_opengl_info(&system.gl);
 
         self.vao = gen_textured_box_3d(&system.gl);
 

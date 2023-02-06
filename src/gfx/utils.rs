@@ -1,22 +1,34 @@
-use gl33::*;
-
-pub fn check_gl_err(gl: &GlFns) {
-    unsafe {
-        let err = gl.GetError();
-        if err == gl33::GL_NO_ERROR {
-            return;
-        }
-        panic!("error: {:?}", err);
-    }
+#[derive(Default)]
+pub struct BitFields<T> {
+    bits: T,
 }
 
-pub fn print_opengl_info(gl: &GlFns) {
-    let mut mtu: i32 = 0;
-    unsafe {
-        gl.GetIntegerv(gl33::GL_MAX_TEXTURE_IMAGE_UNITS, &mut mtu);
-        println!("GL_MAX_TEXTURE_IMAGE_UNITS = {}", mtu);
+impl<
+        T: std::ops::BitAndAssign
+            + std::ops::BitAnd
+            + std::ops::BitOrAssign
+            + std::ops::BitXorAssign
+            + std::ops::Not<Output = T>
+            + Default,
+    > BitFields<T>
+where
+    <T as std::ops::BitAnd>::Output: PartialEq<T>,
+    T: Copy,
+{
+    pub fn is_set(&self, flag: T) -> bool {
+        self.bits & flag != T::default()
+    }
 
-        gl.GetIntegerv(gl33::GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &mut mtu);
-        println!("GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS = {}", mtu);
+    pub fn set(&mut self, flag: T) {
+        self.bits |= flag
+    }
+
+    pub fn unset(&mut self, flag: T) {
+        self.bits &= !flag
+    }
+
+    #[allow(dead_code)]
+    pub fn toggle(&mut self, flag: T) {
+        self.bits ^= flag
     }
 }

@@ -1,18 +1,18 @@
 # Target directory for compiled binary
-target/
+/target/
 
 # Directory with external 3rd parties
-external/
+/external/
 
 # Various file types to ignore
 *.rst
-*.md
 *.lock
-*.toml
+/config.toml
 
 # Ignore Cargo build output
 Cargo.toml.orig
 Cargo.lock
+.cargo
 
 # Ignore all log files
 *.log
