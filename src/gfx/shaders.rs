@@ -2,6 +2,7 @@ use super::glutils;
 use gl33::*;
 use std::ffi::CString;
 use std::fs;
+use ultraviolet::*;
 
 #[derive(Default)]
 pub struct Shaders {
@@ -212,17 +213,233 @@ impl Shaders {
         }
     }
 
-    pub fn set_mat4fv_uv(&self, gl: &GlFns, name: &str, mat: &ultraviolet::Mat4) {
+    pub fn set_mat4fv_uv(&self, gl: &GlFns, name: &str, mat: &Mat4) {
         let location = self.get_uniform_location(gl, name);
         unsafe {
             gl.UniformMatrix4fv(location, 1, gl33::GL_FALSE.0 as u8, mat.as_slice().as_ptr());
         }
     }
 
-    pub fn set_mat4fv_uv_cstr(&self, gl: &GlFns, name: &CString, mat: &ultraviolet::Mat4) {
+    pub fn set_mat4fv_uv_cstr(&self, gl: &GlFns, name: &CString, mat: &Mat4) {
         let location = self.get_uniform_location_cstr(gl, name);
         unsafe {
             gl.UniformMatrix4fv(location, 1, gl33::GL_FALSE.0 as u8, mat.as_slice().as_ptr());
         }
+    }
+}
+
+pub struct LightSolid {
+    pub position: Vec3,
+    pub ambient: Vec3,
+    pub diffuse: Vec3,
+    pub specular: Vec3,
+    _position: CString,
+    _ambient: CString,
+    _diffuse: CString,
+    _specular: CString,
+}
+
+impl Default for LightSolid {
+    fn default() -> Self {
+        LightSolid {
+            position: Vec3::default(),
+            ambient: Vec3::default(),
+            diffuse: Vec3::default(),
+            specular: Vec3::default(),
+            _position: CString::new("light.position").expect("CString::new failed"),
+            _ambient: CString::new("light.ambient").expect("CString::new failed"),
+            _diffuse: CString::new("light.diffuse").expect("CString::new failed"),
+            _specular: CString::new("light.specular").expect("CString::new failed"),
+        }
+    }
+}
+
+impl LightSolid {
+    pub fn pass_uniforms(&self, gl: &GlFns, shader: &Shaders) {
+        shader.set_vec3_cstr(
+            gl,
+            &self._position,
+            self.position.x,
+            self.position.y,
+            self.position.z,
+        );
+
+        shader.set_vec3_cstr(
+            gl,
+            &self._ambient,
+            self.ambient.x,
+            self.ambient.y,
+            self.ambient.z,
+        );
+
+        shader.set_vec3_cstr(
+            gl,
+            &self._diffuse,
+            self.diffuse.x,
+            self.diffuse.y,
+            self.diffuse.z,
+        );
+
+        shader.set_vec3_cstr(
+            gl,
+            &self._specular,
+            self.specular.x,
+            self.specular.y,
+            self.specular.z,
+        );
+    }
+}
+
+pub struct MaterialSolid {
+    pub ambient: Vec3,
+    pub diffuse: Vec3,
+    pub specular: Vec3,
+    pub shininess: f32,
+    _ambient: CString,
+    _diffuse: CString,
+    _specular: CString,
+    _shininess: CString,
+}
+
+impl Default for MaterialSolid {
+    fn default() -> Self {
+        MaterialSolid {
+            ambient: Vec3::default(),
+            diffuse: Vec3::default(),
+            specular: Vec3::default(),
+            shininess: 32.0,
+            _ambient: CString::new("material.ambient").expect("CString::new failed"),
+            _diffuse: CString::new("material.diffuse").expect("CString::new failed"),
+            _specular: CString::new("material.specular").expect("CString::new failed"),
+            _shininess: CString::new("material.shininess").expect("CString::new failed"),
+        }
+    }
+}
+
+impl MaterialSolid {
+    pub fn pass_uniforms(&self, gl: &GlFns, shader: &Shaders) {
+        shader.set_vec3_cstr(
+            gl,
+            &self._ambient,
+            self.ambient.x,
+            self.ambient.y,
+            self.ambient.z,
+        );
+
+        shader.set_vec3_cstr(
+            gl,
+            &self._diffuse,
+            self.diffuse.x,
+            self.diffuse.y,
+            self.diffuse.z,
+        );
+
+        shader.set_vec3_cstr(
+            gl,
+            &self._specular,
+            self.specular.x,
+            self.specular.y,
+            self.specular.z,
+        );
+
+        shader.set_f32_cstr(gl, &self._shininess, self.shininess);
+    }
+}
+
+pub struct MaterialTex {
+    pub diffuse: i32,
+    pub specular: Vec3,
+    pub shininess: f32,
+    _diffuse: CString,
+    _specular: CString,
+    _shininess: CString,
+}
+
+impl Default for MaterialTex {
+    fn default() -> Self {
+        MaterialTex {
+            diffuse: 0,
+            specular: Vec3::default(),
+            shininess: 32.0,
+            _diffuse: CString::new("material.diffuse").expect("CString::new failed"),
+            _specular: CString::new("material.specular").expect("CString::new failed"),
+            _shininess: CString::new("material.shininess").expect("CString::new failed"),
+        }
+    }
+}
+
+impl MaterialTex {
+    pub fn pass_uniforms(&self, gl: &GlFns, shader: &Shaders) {
+        shader.set_i32_cstr(gl, &self._diffuse, self.diffuse);
+
+        shader.set_vec3_cstr(
+            gl,
+            &self._specular,
+            self.specular.x,
+            self.specular.y,
+            self.specular.z,
+        );
+
+        shader.set_f32_cstr(gl, &self._shininess, self.shininess);
+    }
+}
+
+pub struct MaterialTexMap {
+    pub diffuse: i32,
+    pub specular: i32,
+    pub shininess: f32,
+    _diffuse: CString,
+    _specular: CString,
+    _shininess: CString,
+}
+
+impl Default for MaterialTexMap {
+    fn default() -> Self {
+        MaterialTexMap {
+            diffuse: 0,
+            specular: 1,
+            shininess: 32.0,
+            _diffuse: CString::new("material.diffuse").expect("CString::new failed"),
+            _specular: CString::new("material.specular").expect("CString::new failed"),
+            _shininess: CString::new("material.shininess").expect("CString::new failed"),
+        }
+    }
+}
+
+impl MaterialTexMap {
+    pub fn pass_uniforms(&self, gl: &GlFns, shader: &Shaders) {
+        shader.set_i32_cstr(gl, &self._diffuse, self.diffuse);
+        shader.set_i32_cstr(gl, &self._specular, self.specular);
+        shader.set_f32_cstr(gl, &self._shininess, self.shininess);
+    }
+}
+
+pub struct VSMatrices {
+    pub projection: Mat4,
+    pub model: Mat4,
+    pub view: Mat4,
+    _projection: CString,
+    _model: CString,
+    _view: CString,
+}
+
+impl Default for VSMatrices {
+    fn default() -> Self {
+        VSMatrices {
+            projection: Mat4::default(),
+            model: Mat4::default(),
+            view: Mat4::default(),
+            _projection: CString::new("projection").expect("CString::new failed"),
+            _model: CString::new("model").expect("CString::new failed"),
+            _view: CString::new("view").expect("CString::new failed"),
+        }
+    }
+}
+
+impl VSMatrices {
+    pub fn pass_uniforms(&self, gl: &GlFns, shader: &Shaders) {
+        shader.set_mat4fv_uv(gl, "projection", &self.projection);
+        shader.set_mat4fv_uv(gl, "model", &self.model);
+        shader.set_mat4fv_uv(gl, "view", &self.view);
     }
 }

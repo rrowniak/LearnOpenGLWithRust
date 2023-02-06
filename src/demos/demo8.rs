@@ -1,6 +1,7 @@
 use super::common::*;
 use crate::demos::Demo;
 use crate::gfx::camera::{CamMovement, Camera};
+use crate::gfx::shaders::{LightSolid, MaterialSolid};
 use crate::gfx::{glutils::*, shaders::Shaders, system, system::IoEvents, utils::*};
 use std::time::Instant;
 use ultraviolet::*;
@@ -51,6 +52,8 @@ pub struct DemoImpl {
     lighting_shader: Shaders,
     cube_shader: Shaders,
     cubes: NormTexCubeObj,
+    light: LightSolid,
+    material: MaterialSolid,
     projection: Mat4,
     timer: Instant,
     first_logic_pass: bool,
@@ -64,6 +67,8 @@ impl DemoImpl {
             lighting_shader: Shaders::default(),
             cube_shader: Shaders::default(),
             cubes: NormTexCubeObj::default(),
+            light: LightSolid::default(),
+            material: MaterialSolid::default(),
             projection: Mat4::default(),
             timer: Instant::now(),
             first_logic_pass: true,
@@ -86,6 +91,16 @@ impl DemoImpl {
 
         self.cubes = NormTexCubeObj::from(&system.gl, DEFAULT_POS_NORM_TEX_CUBE_VERT)?;
         self.cubes.add_another_cube(&system.gl);
+
+        self.light.position = Vec3::new(1.2, 1.0, 2.0);
+        self.light.ambient = Vec3::new(0.2, 0.2, 0.2);
+        self.light.diffuse = Vec3::new(0.5, 0.5, 0.5);
+        self.light.specular = Vec3::new(1.0, 1.0, 1.0);
+
+        self.material.ambient = Vec3::new(1.0, 0.5, 0.31);
+        self.material.diffuse = Vec3::new(1.0, 0.5, 0.31);
+        self.material.specular = Vec3::new(0.5, 0.5, 0.5);
+        self.material.shininess = 32.0;
 
         Ok(())
     }
@@ -146,23 +161,8 @@ impl DemoImpl {
         // draw the cube object
         self.cube_shader.use_program(&system.gl);
 
-        self.cube_shader
-            .set_vec3(&system.gl, "material.ambient", 1.0, 0.5, 0.31);
-        self.cube_shader
-            .set_vec3(&system.gl, "material.diffuse", 1.0, 0.5, 0.31);
-        self.cube_shader
-            .set_vec3(&system.gl, "material.specular", 0.5, 0.5, 0.5);
-        self.cube_shader
-            .set_f32(&system.gl, "material.shininess", 32.0);
-
-        self.cube_shader
-            .set_vec3(&system.gl, "light.position", 1.2, 1.0, 2.0);
-        self.cube_shader
-            .set_vec3(&system.gl, "light.ambient", 0.2, 0.2, 0.2);
-        self.cube_shader
-            .set_vec3(&system.gl, "light.diffuse", 0.5, 0.5, 0.5);
-        self.cube_shader
-            .set_vec3(&system.gl, "light.specular", 1.0, 1.0, 1.0);
+        self.material.pass_uniforms(&system.gl, &self.cube_shader);
+        self.light.pass_uniforms(&system.gl, &self.cube_shader);
 
         self.cube_shader.set_vec3(
             &system.gl,
