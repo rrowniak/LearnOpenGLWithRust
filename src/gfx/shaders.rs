@@ -290,6 +290,68 @@ impl LightSolid {
     }
 }
 
+pub struct LightDir {
+    pub direction: Vec3,
+    pub ambient: Vec3,
+    pub diffuse: Vec3,
+    pub specular: Vec3,
+    _direction: CString,
+    _ambient: CString,
+    _diffuse: CString,
+    _specular: CString,
+}
+
+impl Default for LightDir {
+    fn default() -> Self {
+        LightDir {
+            direction: Vec3::default(),
+            ambient: Vec3::default(),
+            diffuse: Vec3::default(),
+            specular: Vec3::default(),
+            _direction: CString::new("light.direction").expect("CString::new failed"),
+            _ambient: CString::new("light.ambient").expect("CString::new failed"),
+            _diffuse: CString::new("light.diffuse").expect("CString::new failed"),
+            _specular: CString::new("light.specular").expect("CString::new failed"),
+        }
+    }
+}
+
+impl LightDir {
+    pub fn pass_uniforms(&self, gl: &GlFns, shader: &Shaders) {
+        shader.set_vec3_cstr(
+            gl,
+            &self._direction,
+            self.direction.x,
+            self.direction.y,
+            self.direction.z,
+        );
+
+        shader.set_vec3_cstr(
+            gl,
+            &self._ambient,
+            self.ambient.x,
+            self.ambient.y,
+            self.ambient.z,
+        );
+
+        shader.set_vec3_cstr(
+            gl,
+            &self._diffuse,
+            self.diffuse.x,
+            self.diffuse.y,
+            self.diffuse.z,
+        );
+
+        shader.set_vec3_cstr(
+            gl,
+            &self._specular,
+            self.specular.x,
+            self.specular.y,
+            self.specular.z,
+        );
+    }
+}
+
 pub struct MaterialSolid {
     pub ambient: Vec3,
     pub diffuse: Vec3,

@@ -14,7 +14,7 @@ The following is a list of the currently implemented examples:
 - `demo7`: Covers Phong lighting from the "Lighting" section of the book.
 - `demo8`: Covers materials in lighting from the "Lighting" section of the book.
 - `demo9`: Covers lighting maps (diffuse and specular) from the "Lighting" section of the book.
-- `demo10`: Covers light casters from the "Lighting" section of the book.
+- `demo10`: Covers light casters - directional light from the "Lighting" section of the book.
 
 More coming soon!
 
