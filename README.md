@@ -3,6 +3,8 @@ This repository contains examples based on the excellent book *"Learn OpenGL - G
 
 Note: This code has only been tested on Linux.
 
+![Demo11 screenshot](doc/screen1.jpg)
+
 The following is a list of the currently implemented examples:
 
 - `demo1`: Covers triangles and shaders from the "Getting started" section of the book.
@@ -14,7 +16,8 @@ The following is a list of the currently implemented examples:
 - `demo7`: Covers Phong lighting from the "Lighting" section of the book.
 - `demo8`: Covers materials in lighting from the "Lighting" section of the book.
 - `demo9`: Covers lighting maps (diffuse and specular) from the "Lighting" section of the book.
-- `demo10`: Covers light casters - directional light from the "Lighting" section of the book.
+- `demo10`: Covers light casters - directional lights from the "Lighting" section of the book.
+- `demo11`: Covers light casters - point lights from the "Lighting" section of the book.
 
 More coming soon!
 

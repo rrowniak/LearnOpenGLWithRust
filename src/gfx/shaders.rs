@@ -352,6 +352,99 @@ impl LightDir {
     }
 }
 
+// Distance Constant    Linear      Quadratic
+// 3250,    1.0,        0.0014,     0.000007
+// 600,     1.0,        0.007,      0.0002
+// 325,     1.0,        0.014,      0.0007
+// 200,     1.0,        0.022,      0.0019
+// 160,     1.0,        0.027,      0.0028
+// 100,     1.0,        0.045,      0.0075
+// 65,      1.0,        0.07,       0.017
+// 50,      1.0,        0.09,       0.032
+// 32,      1.0,        0.14,       0.07
+// 20,      1.0,        0.22,       0.20
+// 13,      1.0,        0.35,       0.44
+// 7,       1.0,        0.7,        1.8
+pub struct LightPoint {
+    pub position: Vec3,
+
+    pub ambient: Vec3,
+    pub diffuse: Vec3,
+    pub specular: Vec3,
+
+    pub constant: f32,
+    pub linear: f32,
+    pub quadratic: f32,
+
+    _position: CString,
+    _ambient: CString,
+    _diffuse: CString,
+    _specular: CString,
+    _constant: CString,
+    _linear: CString,
+    _quadratic: CString,
+}
+
+impl Default for LightPoint {
+    fn default() -> Self {
+        LightPoint {
+            position: Vec3::default(),
+            ambient: Vec3::default(),
+            diffuse: Vec3::default(),
+            specular: Vec3::default(),
+            constant: 1.0,
+            linear: 0.09,
+            quadratic: 0.032,
+            _position: CString::new("light.position").expect("CString::new failed"),
+            _ambient: CString::new("light.ambient").expect("CString::new failed"),
+            _diffuse: CString::new("light.diffuse").expect("CString::new failed"),
+            _specular: CString::new("light.specular").expect("CString::new failed"),
+            _constant: CString::new("light.constant").expect("CString::new failed"),
+            _linear: CString::new("light.linear").expect("CString::new failed"),
+            _quadratic: CString::new("light.quadratic").expect("CString::new failed"),
+        }
+    }
+}
+
+impl LightPoint {
+    pub fn pass_uniforms(&self, gl: &GlFns, shader: &Shaders) {
+        shader.set_vec3_cstr(
+            gl,
+            &self._position,
+            self.position.x,
+            self.position.y,
+            self.position.z,
+        );
+
+        shader.set_vec3_cstr(
+            gl,
+            &self._ambient,
+            self.ambient.x,
+            self.ambient.y,
+            self.ambient.z,
+        );
+
+        shader.set_vec3_cstr(
+            gl,
+            &self._diffuse,
+            self.diffuse.x,
+            self.diffuse.y,
+            self.diffuse.z,
+        );
+
+        shader.set_vec3_cstr(
+            gl,
+            &self._specular,
+            self.specular.x,
+            self.specular.y,
+            self.specular.z,
+        );
+
+        shader.set_f32_cstr(gl, &self._constant, self.constant);
+        shader.set_f32_cstr(gl, &self._linear, self.linear);
+        shader.set_f32_cstr(gl, &self._quadratic, self.quadratic);
+    }
+}
 pub struct MaterialSolid {
     pub ambient: Vec3,
     pub diffuse: Vec3,
