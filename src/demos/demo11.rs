@@ -1,7 +1,7 @@
 use super::common::*;
 use crate::demos::Demo;
 use crate::gfx::camera::{CamMovement, Camera};
-use crate::gfx::lights::{LightPoint, MaterialTex, MaterialTexMap, VSMatrices};
+use crate::gfx::lights::{MaterialTex, MaterialTexMap, PointLight, VSMatrices};
 use crate::gfx::{glutils::*, shaders::Shaders, system, system::IoEvents, utils::*};
 use std::time::Instant;
 use ultraviolet::*;
@@ -52,7 +52,7 @@ pub struct DemoImpl {
     lamp_shader: Shaders,
     cube_shader: Shaders,
     cube_mat: MaterialTex,
-    light: LightPoint,
+    light: PointLight,
     cube_sm_shader: Shaders,
     cube_sm_mat: MaterialTexMap,
     cubes: NormTexCubeObj,
@@ -71,7 +71,7 @@ impl DemoImpl {
             lamp_shader: Shaders::default(),
             cube_shader: Shaders::default(),
             cube_mat: MaterialTex::default(),
-            light: LightPoint::default(),
+            light: PointLight::default(),
             cube_sm_shader: Shaders::default(),
             cube_sm_mat: MaterialTexMap::default(),
             cubes: NormTexCubeObj::default(),

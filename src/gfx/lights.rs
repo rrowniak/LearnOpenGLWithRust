@@ -30,6 +30,18 @@ impl Default for LightSolid {
 }
 
 impl LightSolid {
+    pub fn new(position: Vec3, ambient: Vec3, diffuse: Vec3, specular: Vec3, prefix: &str) -> Self {
+        LightSolid {
+            position,
+            ambient,
+            diffuse,
+            specular,
+            _position: CString::new(format!("{}.position", prefix)).expect("CString::new failed"),
+            _ambient: CString::new(format!("{}.ambient", prefix)).expect("CString::new failed"),
+            _diffuse: CString::new(format!("{}.diffuse", prefix)).expect("CString::new failed"),
+            _specular: CString::new(format!("{}.specular", prefix)).expect("CString::new failed"),
+        }
+    }
     pub fn pass_uniforms(&self, gl: &GlFns, shader: &Shaders) {
         shader.set_vec3_cstr(
             gl,
@@ -65,7 +77,7 @@ impl LightSolid {
     }
 }
 
-pub struct LightDir {
+pub struct DirLight {
     pub direction: Vec3,
     pub ambient: Vec3,
     pub diffuse: Vec3,
@@ -76,9 +88,9 @@ pub struct LightDir {
     _specular: CString,
 }
 
-impl Default for LightDir {
+impl Default for DirLight {
     fn default() -> Self {
-        LightDir {
+        DirLight {
             direction: Vec3::default(),
             ambient: Vec3::default(),
             diffuse: Vec3::default(),
@@ -91,7 +103,25 @@ impl Default for LightDir {
     }
 }
 
-impl LightDir {
+impl DirLight {
+    pub fn new(
+        direction: Vec3,
+        ambient: Vec3,
+        diffuse: Vec3,
+        specular: Vec3,
+        prefix: &str,
+    ) -> Self {
+        DirLight {
+            direction,
+            ambient,
+            diffuse,
+            specular,
+            _direction: CString::new(format!("{}.direction", prefix)).expect("CString::new failed"),
+            _ambient: CString::new(format!("{}.ambient", prefix)).expect("CString::new failed"),
+            _diffuse: CString::new(format!("{}.diffuse", prefix)).expect("CString::new failed"),
+            _specular: CString::new(format!("{}.specular", prefix)).expect("CString::new failed"),
+        }
+    }
     pub fn pass_uniforms(&self, gl: &GlFns, shader: &Shaders) {
         shader.set_vec3_cstr(
             gl,
@@ -140,7 +170,7 @@ impl LightDir {
 // 20,      1.0,        0.22,       0.20
 // 13,      1.0,        0.35,       0.44
 // 7,       1.0,        0.7,        1.8
-pub struct LightPoint {
+pub struct PointLight {
     pub position: Vec3,
 
     pub ambient: Vec3,
@@ -160,9 +190,9 @@ pub struct LightPoint {
     _quadratic: CString,
 }
 
-impl Default for LightPoint {
+impl Default for PointLight {
     fn default() -> Self {
-        LightPoint {
+        PointLight {
             position: Vec3::default(),
             ambient: Vec3::default(),
             diffuse: Vec3::default(),
@@ -181,7 +211,36 @@ impl Default for LightPoint {
     }
 }
 
-impl LightPoint {
+impl PointLight {
+    #[cfg_attr(feature = "cargo-clippy", allow(clippy::too_many_arguments))]
+    pub fn new(
+        position: Vec3,
+        ambient: Vec3,
+        diffuse: Vec3,
+        specular: Vec3,
+        constant: f32,
+        linear: f32,
+        quadratic: f32,
+        prefix: &str,
+    ) -> Self {
+        PointLight {
+            position,
+            ambient,
+            diffuse,
+            specular,
+            constant,
+            linear,
+            quadratic,
+            _position: CString::new(format!("{}.position", prefix)).expect("CString::new failed"),
+            _ambient: CString::new(format!("{}.ambient", prefix)).expect("CString::new failed"),
+            _diffuse: CString::new(format!("{}.diffuse", prefix)).expect("CString::new failed"),
+            _specular: CString::new(format!("{}.specular", prefix)).expect("CString::new failed"),
+            _constant: CString::new(format!("{}.constant", prefix)).expect("CString::new failed"),
+            _linear: CString::new(format!("{}.linear", prefix)).expect("CString::new failed"),
+            _quadratic: CString::new(format!("{}.quadratic", prefix)).expect("CString::new failed"),
+        }
+    }
+
     pub fn pass_uniforms(&self, gl: &GlFns, shader: &Shaders) {
         shader.set_vec3_cstr(
             gl,
@@ -221,7 +280,7 @@ impl LightPoint {
     }
 }
 
-pub struct FlashLight {
+pub struct SpotLight {
     pub position: Vec3,
     pub direction: Vec3,
     pub cut_off: f32,
@@ -247,9 +306,9 @@ pub struct FlashLight {
     _quadratic: CString,
 }
 
-impl Default for FlashLight {
+impl Default for SpotLight {
     fn default() -> Self {
-        FlashLight {
+        SpotLight {
             position: Vec3::default(),
             direction: Vec3::default(),
             cut_off: 0.0,
@@ -274,7 +333,45 @@ impl Default for FlashLight {
     }
 }
 
-impl FlashLight {
+impl SpotLight {
+    #[cfg_attr(feature = "cargo-clippy", allow(clippy::too_many_arguments))]
+    pub fn new(
+        position: Vec3,
+        direction: Vec3,
+        cut_off: f32,
+        outer_cut_off: f32,
+        ambient: Vec3,
+        diffuse: Vec3,
+        specular: Vec3,
+        constant: f32,
+        linear: f32,
+        quadratic: f32,
+        prefix: &str,
+    ) -> Self {
+        SpotLight {
+            position,
+            direction,
+            cut_off,
+            outer_cut_off,
+            ambient,
+            diffuse,
+            specular,
+            constant,
+            linear,
+            quadratic,
+            _position: CString::new(format!("{}.position", prefix)).expect("CString::new failed"),
+            _direction: CString::new(format!("{}.direction", prefix)).expect("CString::new failed"),
+            _cut_off: CString::new(format!("{}.cutOff", prefix)).expect("CString::new failed"),
+            _outer_cut_off: CString::new(format!("{}.outerCutOff", prefix))
+                .expect("CString::new failed"),
+            _ambient: CString::new(format!("{}.ambient", prefix)).expect("CString::new failed"),
+            _diffuse: CString::new(format!("{}.diffuse", prefix)).expect("CString::new failed"),
+            _specular: CString::new(format!("{}.specular", prefix)).expect("CString::new failed"),
+            _constant: CString::new(format!("{}.constant", prefix)).expect("CString::new failed"),
+            _linear: CString::new(format!("{}.linear", prefix)).expect("CString::new failed"),
+            _quadratic: CString::new(format!("{}.quadratic", prefix)).expect("CString::new failed"),
+        }
+    }
     pub fn pass_uniforms(&self, gl: &GlFns, shader: &Shaders) {
         shader.set_vec3_cstr(
             gl,

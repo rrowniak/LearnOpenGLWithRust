@@ -1,8 +1,9 @@
 use super::common::*;
 use crate::demos::Demo;
 use crate::gfx::camera::{CamMovement, Camera};
-use crate::gfx::lights::{MaterialTex, MaterialTexMap, SpotLight, VSMatrices};
+use crate::gfx::lights::{DirLight, MaterialTexMap, PointLight, SpotLight, VSMatrices};
 use crate::gfx::{glutils::*, shaders::Shaders, system, system::IoEvents, utils::*};
+use gl33::GlFns;
 use std::time::Instant;
 use ultraviolet::*;
 
@@ -48,13 +49,123 @@ const KEY_DOWN: u8 = 0x02;
 const KEY_LEFT: u8 = 0x04;
 const KEY_RIGHT: u8 = 0x08;
 
+const CUBE_POSITIONS: [Vec3; 10] = [
+    Vec3::new(0.0, 0.0, 0.0),
+    Vec3::new(2.0, 5.0, -15.0),
+    Vec3::new(-1.5, -2.2, -2.5),
+    Vec3::new(-3.8, -2.0, -12.3),
+    Vec3::new(2.4, -0.4, -3.5),
+    Vec3::new(-1.7, 3.0, -7.5),
+    Vec3::new(1.3, -2.0, -2.5),
+    Vec3::new(1.5, 2.0, -2.5),
+    Vec3::new(1.5, 0.2, -1.5),
+    Vec3::new(-1.3, 1.0, -1.5),
+];
+
+const POINT_LIGHT_POSITIONS: [Vec3; 4] = [
+    Vec3::new(0.7, 0.2, 2.0),
+    Vec3::new(2.3, -3.3, -4.0),
+    Vec3::new(-4.0, 2.0, -12.0),
+    Vec3::new(0.0, 0.0, -3.0),
+];
+
+struct MultLights {
+    material: MaterialTexMap,
+    dir_light: DirLight,
+    point_lights: [PointLight; 4],
+    spot_light: SpotLight,
+}
+
+impl MultLights {
+    fn new() -> Self {
+        let ambient = Vec3::new(0.05, 0.05, 0.05);
+        let diffuse = Vec3::new(0.8, 0.8, 0.8);
+        let specular = Vec3::new(1.0, 1.0, 1.0);
+        MultLights {
+            material: MaterialTexMap::default(),
+            dir_light: DirLight::new(
+                Vec3::new(-0.2, -1.0, -0.3),
+                ambient,
+                Vec3::new(0.4, 0.4, 0.4),
+                Vec3::new(0.5, 0.5, 0.5),
+                "dirLight",
+            ),
+            point_lights: [
+                PointLight::new(
+                    POINT_LIGHT_POSITIONS[0],
+                    ambient,
+                    diffuse,
+                    specular,
+                    1.0,
+                    0.09,
+                    0.032,
+                    "pointLights[0]",
+                ),
+                PointLight::new(
+                    POINT_LIGHT_POSITIONS[1],
+                    ambient,
+                    diffuse,
+                    specular,
+                    1.0,
+                    0.09,
+                    0.032,
+                    "pointLights[1]",
+                ),
+                PointLight::new(
+                    POINT_LIGHT_POSITIONS[2],
+                    ambient,
+                    diffuse,
+                    specular,
+                    1.0,
+                    0.09,
+                    0.032,
+                    "pointLights[2]",
+                ),
+                PointLight::new(
+                    POINT_LIGHT_POSITIONS[3],
+                    ambient,
+                    diffuse,
+                    specular,
+                    1.0,
+                    0.09,
+                    0.032,
+                    "pointLights[3]",
+                ),
+            ],
+            spot_light: SpotLight::new(
+                Vec3::default(),
+                Vec3::default(),
+                12.5f32.to_radians().cos(),
+                15.0f32.to_radians().cos(),
+                Vec3::new(0.0, 0.0, 0.0),
+                Vec3::new(1.0, 1.0, 1.0),
+                Vec3::new(1.0, 1.0, 1.0),
+                1.0,
+                0.09,
+                0.032,
+                "spotLight",
+            ),
+        }
+    }
+
+    fn pass_uniforms(&mut self, gl: &GlFns, shader: &Shaders, camera: &Camera) {
+        self.material.pass_uniforms(gl, shader);
+        self.dir_light.pass_uniforms(gl, shader);
+        self.point_lights[0].pass_uniforms(gl, shader);
+        self.point_lights[1].pass_uniforms(gl, shader);
+        self.point_lights[2].pass_uniforms(gl, shader);
+        self.point_lights[3].pass_uniforms(gl, shader);
+
+        self.spot_light.position = camera.position;
+        self.spot_light.direction = camera.front;
+        self.spot_light.pass_uniforms(gl, shader);
+    }
+}
+
 pub struct DemoImpl {
     lamp_shader: Shaders,
     cube_shader: Shaders,
-    cube_mat: MaterialTex,
-    light: SpotLight,
-    cube_sm_shader: Shaders,
-    cube_sm_mat: MaterialTexMap,
+    lights: MultLights,
     cubes: NormTexCubeObj,
     mvp: VSMatrices,
     timer: Instant,
@@ -70,10 +181,7 @@ impl DemoImpl {
         DemoImpl {
             lamp_shader: Shaders::default(),
             cube_shader: Shaders::default(),
-            cube_mat: MaterialTex::default(),
-            light: SpotLight::default(),
-            cube_sm_shader: Shaders::default(),
-            cube_sm_mat: MaterialTexMap::default(),
+            lights: MultLights::new(),
             cubes: NormTexCubeObj::default(),
             mvp: VSMatrices::default(),
             timer: Instant::now(),
@@ -91,13 +199,7 @@ impl DemoImpl {
         self.cube_shader = Shaders::from_files(
             &system.gl,
             "./demo/demo9_box.vs",
-            "./demo/demo12_box_SpotLight.fs",
-        )?;
-
-        self.cube_sm_shader = Shaders::from_files(
-            &system.gl,
-            "./demo/demo9_box.vs",
-            "./demo/demo12_box_specular_map_SpotLight.fs",
+            "./demo/demo13_multiple_lights.fs",
         )?;
 
         self.texture = load_texture(&system.gl, "./demo/container2.png", true)?;
@@ -109,29 +211,6 @@ impl DemoImpl {
         self.camera.mouse_sensitivity = 0.1;
 
         self.cubes = NormTexCubeObj::from(&system.gl, DEFAULT_POS_NORM_TEX_CUBE_VERT)?;
-        self.cubes.add_another_cube(&system.gl);
-        self.cubes.add_another_cube(&system.gl);
-        // add 10 more
-        for _ in 0..10 {
-            self.cubes.add_another_cube(&system.gl);
-        }
-
-        self.light.cut_off = 12.5f32.to_radians().cos();
-        self.light.outer_cut_off = 17.5f32.to_radians().cos();
-        self.light.ambient = Vec3::new(0.1, 0.1, 0.1);
-        self.light.diffuse = Vec3::new(0.8, 0.8, 0.8);
-        self.light.specular = Vec3::new(1.0, 1.0, 1.0);
-        self.light.constant = 1.0;
-        self.light.linear = 0.09;
-        self.light.quadratic = 0.032;
-
-        self.cube_mat.diffuse = 0;
-        self.cube_mat.specular = Vec3::new(0.5, 0.5, 0.5);
-        self.cube_mat.shininess = 32.0;
-
-        self.cube_sm_mat.diffuse = 0;
-        self.cube_sm_mat.specular = 1;
-        self.cube_sm_mat.shininess = 32.0;
 
         Ok(())
     }
@@ -186,29 +265,15 @@ impl DemoImpl {
             }
         }
 
-        self.light.position = self.camera.position;
-        self.light.direction = self.camera.front;
         Ok(())
     }
 
-    const CUBE_POSITIONS: [Vec3; 10] = [
-        Vec3::new(0.0, 0.0, 0.0),
-        Vec3::new(2.0, 5.0, -15.0),
-        Vec3::new(-1.5, -2.2, -2.5),
-        Vec3::new(-3.8, -2.0, -12.3),
-        Vec3::new(2.4, -0.4, -3.5),
-        Vec3::new(-1.7, 3.0, -7.5),
-        Vec3::new(1.3, -2.0, -2.5),
-        Vec3::new(1.5, 2.0, -2.5),
-        Vec3::new(1.5, 0.2, -1.5),
-        Vec3::new(-1.3, 1.0, -1.5),
-    ];
-
     fn render(&mut self, system: &system::System) -> Result<(), String> {
-        // draw the cube object
+        self.mvp.view = self.camera.get_view_matrix();
+        // draw the cube object with specular map
         self.cube_shader.use_program(&system.gl);
-        self.cube_mat.pass_uniforms(&system.gl, &self.cube_shader);
-        self.light.pass_uniforms(&system.gl, &self.cube_shader);
+        self.lights
+            .pass_uniforms(&system.gl, &self.cube_shader, &self.camera);
 
         self.cube_shader.set_vec3(
             &system.gl,
@@ -218,51 +283,13 @@ impl DemoImpl {
             self.camera.position.z,
         );
 
-        self.mvp.view = self.camera.get_view_matrix();
-        self.mvp.model = Mat4::default();
-        self.mvp.pass_uniforms(&system.gl, &self.cube_shader);
-
-        unsafe {
-            system.gl.ActiveTexture(gl33::GL_TEXTURE0);
-            system.gl.BindTexture(gl33::GL_TEXTURE_2D, self.texture);
-        }
-        self.cubes.draw(&system.gl, 0);
-
-        // draw the cube object with specular map
-        self.cube_sm_shader.use_program(&system.gl);
-        self.cube_sm_mat
-            .pass_uniforms(&system.gl, &self.cube_sm_shader);
-        self.light.pass_uniforms(&system.gl, &self.cube_sm_shader);
-
-        self.cube_sm_shader.set_vec3(
-            &system.gl,
-            "viewPos",
-            self.camera.position.x,
-            self.camera.position.y,
-            self.camera.position.z,
-        );
-
-        self.mvp.model = Mat4::default();
-        self.mvp.model.translate(&Vec3::new(1.1, 0.0, 0.0));
-        self.mvp.pass_uniforms(&system.gl, &self.cube_sm_shader);
-        unsafe {
-            system.gl.ActiveTexture(gl33::GL_TEXTURE0);
-            system.gl.BindTexture(gl33::GL_TEXTURE_2D, self.texture);
-
-            system.gl.ActiveTexture(gl33::GL_TEXTURE1);
-            system
-                .gl
-                .BindTexture(gl33::GL_TEXTURE_2D, self.texture_specular_map);
-        }
-        self.cubes.draw(&system.gl, 2);
-
-        for i in 0..10 {
+        for (i, p) in CUBE_POSITIONS.iter().enumerate() {
             self.mvp.model = Mat4::default();
             let angle = 10.0 * (i as f32);
             self.mvp.model =
                 Mat4::from_rotation_around(Vec4::new(1.0, 0.3, 0.5, 0.0), angle.to_radians());
-            self.mvp.model.translate(&Self::CUBE_POSITIONS[i]);
-            self.mvp.pass_uniforms(&system.gl, &self.cube_sm_shader);
+            self.mvp.model.translate(p);
+            self.mvp.pass_uniforms(&system.gl, &self.cube_shader);
             unsafe {
                 system.gl.ActiveTexture(gl33::GL_TEXTURE0);
                 system.gl.BindTexture(gl33::GL_TEXTURE_2D, self.texture);
@@ -272,16 +299,18 @@ impl DemoImpl {
                     .gl
                     .BindTexture(gl33::GL_TEXTURE_2D, self.texture_specular_map);
             }
-            self.cubes.draw(&system.gl, i + 3);
+            self.cubes.draw(&system.gl, 0);
         }
 
-        // draw the lamp object
+        // draw the lamp objects
         self.lamp_shader.use_program(&system.gl);
-        self.mvp.model = Mat4::default();
-        self.mvp.model.translate(&Vec3::new(1.2, 1.0, 2.0));
-        self.mvp.model = self.mvp.model * Mat4::from_scale(0.2);
-        self.mvp.pass_uniforms(&system.gl, &self.lamp_shader);
-        self.cubes.draw(&system.gl, 1);
+        for p in POINT_LIGHT_POSITIONS {
+            self.mvp.model = Mat4::default();
+            self.mvp.model.translate(&p);
+            self.mvp.model = self.mvp.model * Mat4::from_scale(0.2);
+            self.mvp.pass_uniforms(&system.gl, &self.lamp_shader);
+            self.cubes.draw(&system.gl, 0);
+        }
 
         Ok(())
     }

@@ -19,6 +19,7 @@ The following is a list of the currently implemented examples:
 - `demo10`: Covers light casters - directional lights from the "Lighting" section of the book.
 - `demo11`: Covers light casters - point lights from the "Lighting" section of the book.
 - `demo12`: Covers light casters - flashlights from the "Lighting" section of the book.
+- `demo13`: Covers light casters - multiple lights from the "Lighting" section of the book.
 
 More coming soon!
 
