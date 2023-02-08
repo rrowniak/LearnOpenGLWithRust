@@ -9,7 +9,7 @@ pub enum CamMovement {
 pub struct Camera {
     // camera Attributes
     pub position: Vec3,
-    front: Vec3,
+    pub front: Vec3,
     up: Vec3,
     right: Vec3,
     world_up: Vec3,
@@ -92,11 +92,9 @@ impl Camera {
     }
 
     fn update_camera_vectors(&mut self) {
-        self.front = Vec3::new(
-            self.yaw.to_radians().cos() * self.pitch.to_radians().cos(),
-            self.pitch.to_radians().sin(),
-            self.yaw.to_radians().sin() * self.pitch.to_radians().cos(),
-        );
+        self.front.x = self.yaw.to_radians().cos() * self.pitch.to_radians().cos();
+        self.front.y = self.pitch.to_radians().sin();
+        self.front.z = self.yaw.to_radians().sin() * self.pitch.to_radians().cos();
         self.front.normalize();
 
         self.right = self.front.clone().cross(self.world_up);

@@ -1,7 +1,7 @@
 use super::common::*;
 use crate::demos::Demo;
 use crate::gfx::camera::{CamMovement, Camera};
-use crate::gfx::shaders::{LightPoint, MaterialTex, MaterialTexMap, VSMatrices};
+use crate::gfx::lights::{LightPoint, MaterialTex, MaterialTexMap, VSMatrices};
 use crate::gfx::{glutils::*, shaders::Shaders, system, system::IoEvents, utils::*};
 use std::time::Instant;
 use ultraviolet::*;

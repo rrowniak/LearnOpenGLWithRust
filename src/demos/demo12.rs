@@ -1,7 +1,7 @@
 use super::common::*;
 use crate::demos::Demo;
 use crate::gfx::camera::{CamMovement, Camera};
-use crate::gfx::lights::{LightSolid, MaterialSolid};
+use crate::gfx::lights::{FlashLight, MaterialTex, MaterialTexMap, VSMatrices};
 use crate::gfx::{glutils::*, shaders::Shaders, system, system::IoEvents, utils::*};
 use std::time::Instant;
 use ultraviolet::*;
@@ -49,41 +49,60 @@ const KEY_LEFT: u8 = 0x04;
 const KEY_RIGHT: u8 = 0x08;
 
 pub struct DemoImpl {
-    lighting_shader: Shaders,
+    lamp_shader: Shaders,
     cube_shader: Shaders,
+    cube_mat: MaterialTex,
+    light: FlashLight,
+    cube_sm_shader: Shaders,
+    cube_sm_mat: MaterialTexMap,
     cubes: NormTexCubeObj,
-    light: LightSolid,
-    material: MaterialSolid,
-    projection: Mat4,
+    mvp: VSMatrices,
     timer: Instant,
     first_logic_pass: bool,
     camera: Camera,
     io_flags: BitFields<u8>,
+    texture: u32,
+    texture_specular_map: u32,
 }
 
 impl DemoImpl {
     fn new() -> Self {
         DemoImpl {
-            lighting_shader: Shaders::default(),
+            lamp_shader: Shaders::default(),
             cube_shader: Shaders::default(),
+            cube_mat: MaterialTex::default(),
+            light: FlashLight::default(),
+            cube_sm_shader: Shaders::default(),
+            cube_sm_mat: MaterialTexMap::default(),
             cubes: NormTexCubeObj::default(),
-            light: LightSolid::default(),
-            material: MaterialSolid::default(),
-            projection: Mat4::default(),
+            mvp: VSMatrices::default(),
             timer: Instant::now(),
             first_logic_pass: true,
             camera: Camera::new(),
             io_flags: BitFields::<u8>::default(),
+            texture: 0,
+            texture_specular_map: 0,
         }
     }
     fn init(&mut self, system: &system::System) -> Result<(), String> {
-        print_opengl_info(&system.gl);
-
-        self.lighting_shader =
+        self.lamp_shader =
             Shaders::from_files(&system.gl, "./demo/demo7_lig.vs", "./demo/demo7_lig.fs")?;
 
-        self.cube_shader =
-            Shaders::from_files(&system.gl, "./demo/demo7_box.vs", "./demo/demo8_box.fs")?;
+        self.cube_shader = Shaders::from_files(
+            &system.gl,
+            "./demo/demo9_box.vs",
+            "./demo/demo12_box_flashlight.fs",
+        )?;
+
+        self.cube_sm_shader = Shaders::from_files(
+            &system.gl,
+            "./demo/demo9_box.vs",
+            "./demo/demo12_box_specular_map_flashlight.fs",
+        )?;
+
+        self.texture = load_texture(&system.gl, "./demo/container2.png", true)?;
+        self.texture_specular_map =
+            load_texture(&system.gl, "./demo/container2_specular.png", true)?;
 
         self.build_projection_matrix(system, 45.0f32.to_radians());
         self.camera.position.z += 7.0;
@@ -91,16 +110,28 @@ impl DemoImpl {
 
         self.cubes = NormTexCubeObj::from(&system.gl, DEFAULT_POS_NORM_TEX_CUBE_VERT)?;
         self.cubes.add_another_cube(&system.gl);
+        self.cubes.add_another_cube(&system.gl);
+        // add 10 more
+        for _ in 0..10 {
+            self.cubes.add_another_cube(&system.gl);
+        }
 
-        self.light.position = Vec3::new(1.2, 1.0, 2.0);
-        self.light.ambient = Vec3::new(0.2, 0.2, 0.2);
-        self.light.diffuse = Vec3::new(0.5, 0.5, 0.5);
+        self.light.cut_off = 12.5f32.to_radians().cos();
+        self.light.outer_cut_off = 17.5f32.to_radians().cos();
+        self.light.ambient = Vec3::new(0.1, 0.1, 0.1);
+        self.light.diffuse = Vec3::new(0.8, 0.8, 0.8);
         self.light.specular = Vec3::new(1.0, 1.0, 1.0);
+        self.light.constant = 1.0;
+        self.light.linear = 0.09;
+        self.light.quadratic = 0.032;
 
-        self.material.ambient = Vec3::new(1.0, 0.5, 0.31);
-        self.material.diffuse = Vec3::new(1.0, 0.5, 0.31);
-        self.material.specular = Vec3::new(0.5, 0.5, 0.5);
-        self.material.shininess = 32.0;
+        self.cube_mat.diffuse = 0;
+        self.cube_mat.specular = Vec3::new(0.5, 0.5, 0.5);
+        self.cube_mat.shininess = 32.0;
+
+        self.cube_sm_mat.diffuse = 0;
+        self.cube_sm_mat.specular = 1;
+        self.cube_sm_mat.shininess = 32.0;
 
         Ok(())
     }
@@ -154,14 +185,29 @@ impl DemoImpl {
                 self.camera.process_keyboard(CamMovement::Right, delta_t)
             }
         }
+
+        self.light.position = self.camera.position;
+        self.light.direction = self.camera.front;
         Ok(())
     }
+
+    const CUBE_POSITIONS: [Vec3; 10] = [
+        Vec3::new(0.0, 0.0, 0.0),
+        Vec3::new(2.0, 5.0, -15.0),
+        Vec3::new(-1.5, -2.2, -2.5),
+        Vec3::new(-3.8, -2.0, -12.3),
+        Vec3::new(2.4, -0.4, -3.5),
+        Vec3::new(-1.7, 3.0, -7.5),
+        Vec3::new(1.3, -2.0, -2.5),
+        Vec3::new(1.5, 2.0, -2.5),
+        Vec3::new(1.5, 0.2, -1.5),
+        Vec3::new(-1.3, 1.0, -1.5),
+    ];
 
     fn render(&mut self, system: &system::System) -> Result<(), String> {
         // draw the cube object
         self.cube_shader.use_program(&system.gl);
-
-        self.material.pass_uniforms(&system.gl, &self.cube_shader);
+        self.cube_mat.pass_uniforms(&system.gl, &self.cube_shader);
         self.light.pass_uniforms(&system.gl, &self.cube_shader);
 
         self.cube_shader.set_vec3(
@@ -172,34 +218,76 @@ impl DemoImpl {
             self.camera.position.z,
         );
 
-        self.cube_shader
-            .set_mat4fv_uv(&system.gl, "projection", &self.projection);
+        self.mvp.view = self.camera.get_view_matrix();
+        self.mvp.model = Mat4::default();
+        self.mvp.pass_uniforms(&system.gl, &self.cube_shader);
 
-        let view = self.camera.get_view_matrix();
-        self.cube_shader.set_mat4fv_uv(&system.gl, "view", &view);
-
-        self.cube_shader
-            .set_mat4fv_uv(&system.gl, "model", &Mat4::default());
+        unsafe {
+            system.gl.ActiveTexture(gl33::GL_TEXTURE0);
+            system.gl.BindTexture(gl33::GL_TEXTURE_2D, self.texture);
+        }
         self.cubes.draw(&system.gl, 0);
 
+        // draw the cube object with specular map
+        self.cube_sm_shader.use_program(&system.gl);
+        self.cube_sm_mat
+            .pass_uniforms(&system.gl, &self.cube_sm_shader);
+        self.light.pass_uniforms(&system.gl, &self.cube_sm_shader);
+
+        self.cube_sm_shader.set_vec3(
+            &system.gl,
+            "viewPos",
+            self.camera.position.x,
+            self.camera.position.y,
+            self.camera.position.z,
+        );
+
+        self.mvp.model = Mat4::default();
+        self.mvp.model.translate(&Vec3::new(1.1, 0.0, 0.0));
+        self.mvp.pass_uniforms(&system.gl, &self.cube_sm_shader);
+        unsafe {
+            system.gl.ActiveTexture(gl33::GL_TEXTURE0);
+            system.gl.BindTexture(gl33::GL_TEXTURE_2D, self.texture);
+
+            system.gl.ActiveTexture(gl33::GL_TEXTURE1);
+            system
+                .gl
+                .BindTexture(gl33::GL_TEXTURE_2D, self.texture_specular_map);
+        }
+        self.cubes.draw(&system.gl, 2);
+
+        for i in 0..10 {
+            self.mvp.model = Mat4::default();
+            let angle = 10.0 * (i as f32);
+            self.mvp.model =
+                Mat4::from_rotation_around(Vec4::new(1.0, 0.3, 0.5, 0.0), angle.to_radians());
+            self.mvp.model.translate(&Self::CUBE_POSITIONS[i]);
+            self.mvp.pass_uniforms(&system.gl, &self.cube_sm_shader);
+            unsafe {
+                system.gl.ActiveTexture(gl33::GL_TEXTURE0);
+                system.gl.BindTexture(gl33::GL_TEXTURE_2D, self.texture);
+
+                system.gl.ActiveTexture(gl33::GL_TEXTURE1);
+                system
+                    .gl
+                    .BindTexture(gl33::GL_TEXTURE_2D, self.texture_specular_map);
+            }
+            self.cubes.draw(&system.gl, i + 3);
+        }
+
         // draw the lamp object
-        self.lighting_shader.use_program(&system.gl);
-        self.lighting_shader
-            .set_mat4fv_uv(&system.gl, "projection", &self.projection);
-        self.lighting_shader
-            .set_mat4fv_uv(&system.gl, "view", &view);
-        let mut model = Mat4::default();
-        model.translate(&Vec3::new(1.2, 1.0, 2.0));
-        model = model * Mat4::from_scale(0.2);
-        self.lighting_shader
-            .set_mat4fv_uv(&system.gl, "model", &model);
+        self.lamp_shader.use_program(&system.gl);
+        self.mvp.model = Mat4::default();
+        self.mvp.model.translate(&Vec3::new(1.2, 1.0, 2.0));
+        self.mvp.model = self.mvp.model * Mat4::from_scale(0.2);
+        self.mvp.pass_uniforms(&system.gl, &self.lamp_shader);
         self.cubes.draw(&system.gl, 1);
 
         Ok(())
     }
 
     fn build_projection_matrix(&mut self, system: &system::System, fov_rad: f32) {
-        self.projection = projection::rh_yup::perspective_gl(
+        self.mvp.projection = projection::rh_yup::perspective_gl(
             fov_rad,
             (system.w as f32) / (system.h as f32),
             0.1,

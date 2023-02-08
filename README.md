@@ -18,6 +18,7 @@ The following is a list of the currently implemented examples:
 - `demo9`: Covers lighting maps (diffuse and specular) from the "Lighting" section of the book.
 - `demo10`: Covers light casters - directional lights from the "Lighting" section of the book.
 - `demo11`: Covers light casters - point lights from the "Lighting" section of the book.
+- `demo12`: Covers light casters - flashlights from the "Lighting" section of the book.
 
 More coming soon!
 
