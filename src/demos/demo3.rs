@@ -16,8 +16,8 @@ impl Demo3 {
 
         let vao = gen_textured_box_2d(&system.gl);
 
-        let texture = load_texture(&system.gl, "./demo/container.jpg", false)?;
-        let awesome_texture = load_texture(&system.gl, "./demo/awesomeface.png", true)?;
+        let texture = load_texture(&system.gl, "./demo/container.jpg")?;
+        let awesome_texture = load_texture(&system.gl, "./demo/awesomeface.png")?;
 
         let shaders_mix = Shaders::from_files(
             &system.gl,

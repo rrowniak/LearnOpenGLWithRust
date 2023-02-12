@@ -165,8 +165,26 @@ impl Shaders {
         }
     }
 
+    pub fn try_set_i32(&self, gl: &GlFns, name: &str, value: i32) {
+        unsafe {
+            let c_name = std::ffi::CString::new(name).unwrap();
+            let location = gl.GetUniformLocation(self.program_id, c_name.as_ptr().cast());
+
+            if location == -1 {
+                return;
+            }
+
+            gl.Uniform1i(location, value);
+        }
+    }
+
     pub fn set_f32(&self, gl: &GlFns, name: &str, value: f32) {
         unsafe {
+            let c_name = std::ffi::CString::new(name).unwrap_or_else(|_| {
+                panic!("get_uniform_location: CString::new failed for '{}'", name);
+            });
+
+            self.get_uniform_location_cstr(gl, &c_name);
             gl.Uniform1f(self.get_uniform_location(gl, name), value);
         }
     }

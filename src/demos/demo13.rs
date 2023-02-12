@@ -202,9 +202,8 @@ impl DemoImpl {
             "./demo/demo13_multiple_lights.fs",
         )?;
 
-        self.texture = load_texture(&system.gl, "./demo/container2.png", true)?;
-        self.texture_specular_map =
-            load_texture(&system.gl, "./demo/container2_specular.png", true)?;
+        self.texture = load_texture(&system.gl, "./demo/container2.png")?;
+        self.texture_specular_map = load_texture(&system.gl, "./demo/container2_specular.png")?;
 
         self.build_projection_matrix(system, 45.0f32.to_radians());
         self.camera.position.z += 7.0;

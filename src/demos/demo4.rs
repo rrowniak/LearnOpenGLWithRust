@@ -88,8 +88,8 @@ impl DemoImpl {
 
         self.vao = gen_textured_box_3d(&system.gl);
 
-        self.texture = load_texture(&system.gl, "./demo/container.jpg", false)?;
-        self.awesome_texture = load_texture(&system.gl, "./demo/awesomeface.png", true)?;
+        self.texture = load_texture(&system.gl, "./demo/container.jpg")?;
+        self.awesome_texture = load_texture(&system.gl, "./demo/awesomeface.png")?;
 
         self.shaders_mix = Shaders::from_files(
             &system.gl,

@@ -15,8 +15,8 @@ impl Demo2 {
         let mut system = system::System::new(800, 600);
         system.clear_screen(0.2, 0.3, 0.4);
 
-        let texture = load_texture(&system.gl, "./demo/container.jpg", false)?;
-        let awesome_texture = load_texture(&system.gl, "./demo/awesomeface.png", true)?;
+        let texture = load_texture(&system.gl, "./demo/container.jpg")?;
+        let awesome_texture = load_texture(&system.gl, "./demo/awesomeface.png")?;
 
         let vao = gen_textured_box_2d(&system.gl);
         let shaders = Shaders::from_files(

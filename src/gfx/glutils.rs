@@ -57,7 +57,7 @@ pub fn gl_vertex_attrib_ptr_enab(gl: &GlFns, index: u32, size: u32, stride: u32,
     }
 }
 
-pub fn load_texture(gl: &GlFns, filename: &str, rgba: bool) -> Result<u32, String> {
+pub fn load_texture(gl: &GlFns, filename: &str) -> Result<u32, String> {
     let mut texture = 0;
     unsafe {
         gl.GenTextures(1, &mut texture);
@@ -96,17 +96,18 @@ pub fn load_texture(gl: &GlFns, filename: &str, rgba: bool) -> Result<u32, Strin
             return Err("32-bit images not supported here".to_string());
             // img
         }
-        stb_image::image::LoadResult::ImageU8(img) => {
-            // return Err("8-bit images not supported here".to_string())
-            img
-        }
+        stb_image::image::LoadResult::ImageU8(img) => img,
         stb_image::image::LoadResult::Error(e) => {
             return Err(format!("loading image {} error: {}", filename, e))
         }
     };
 
     let mut format = gl33::GL_RGB;
-    if rgba {
+    if img.depth == 1 {
+        format = gl33::GL_RED;
+    } else if img.depth == 3 {
+        format = gl33::GL_RGB;
+    } else if img.depth == 4 {
         format = gl33::GL_RGBA;
     }
 
