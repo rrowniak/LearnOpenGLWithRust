@@ -83,7 +83,7 @@ impl DemoImpl {
         self.camera.position.z += 7.0;
         self.camera.mouse_sensitivity = 0.1;
 
-        self.model = ModelWrapT::Some(Box::new(setup_model(DEFAULT_POS_NORM_TEX_CUBE_VERT)));
+        self.model = ModelWrapT::Some(Box::new(setup_model_box(DEFAULT_POS_NORM_TEX_CUBE_VERT)));
         self.backpack = ModelWrapT::Some(Box::new(
             Model::from(&system.gl, "./demo/backpack/backpack.obj").unwrap(),
         ));
@@ -184,28 +184,4 @@ impl DemoImpl {
             100.0,
         );
     }
-}
-
-fn setup_model(d: [f32; 288]) -> Model {
-    let mut i = 0;
-    let mut model = Model::default();
-    model.meshes.push(Mesh::default());
-
-    loop {
-        let v = Vertex {
-            position: Vec3::new(d[i], d[i + 1], d[i + 2]),
-            normal: Vec3::new(d[i + 3], d[i + 4], d[i + 5]),
-            tex_coords: Vec2::new(d[i + 6], d[i + 7]),
-        };
-
-        model.meshes[0].vertices.push(v);
-        let vlen = model.meshes[0].vertices.len();
-        model.meshes[0].indices.push((vlen - 1) as u32);
-
-        i += 8;
-        if i >= d.len() {
-            break;
-        }
-    }
-    model
 }

@@ -22,7 +22,7 @@ impl Shaders {
 
         let fragment_code = match fs::read_to_string(fragment_file) {
             Ok(v) => v,
-            Err(e) => return Err(format!("error reading {}: {}", vertex_file, e)),
+            Err(e) => return Err(format!("error reading {}: {}", fragment_file, e)),
         };
 
         Shaders::from_str(gl, vertex_code.as_str(), fragment_code.as_str())

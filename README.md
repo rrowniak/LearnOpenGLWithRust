@@ -21,7 +21,7 @@ The following is a list of the currently implemented examples:
 - `demo13`: Covers multiple lights from the "Lighting" section of the book.
 - `demo14`: Covers loading 3D models using the assimp library from the "Model loading" section of the book.
 ![Demo14 screenshot](doc/screen2.jpg)
-
+- `demo15`: Covers depth testing, stencil testing, blending and face culling from the "Advanced OpenGL" section of the book.
 More coming soon!
 
 ## Purpose

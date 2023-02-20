@@ -10,6 +10,13 @@ pub const KEY_RIGHT: i32 = SDLK_RIGHT.0;
 pub const KEY_LEFT: i32 = SDLK_LEFT.0;
 pub const KEY_DOWN: i32 = SDLK_DOWN.0;
 pub const KEY_UP: i32 = SDLK_UP.0;
+pub const KEY_PAGEDOWN: i32 = SDLK_PAGEDOWN.0;
+pub const KEY_PAGEUP: i32 = SDLK_PAGEUP.0;
+pub const KEY_HOME: i32 = SDLK_HOME.0;
+pub const KEY_END: i32 = SDLK_END.0;
+pub const KEY_INSERT: i32 = SDLK_INSERT.0;
+// pub const KEY_DELETE: i32 = SDLK_DELETE.0;
+pub const KEY_DELETE: i32 = SDL_Keycode(127).0;
 
 pub enum MouseButtonId {
     // x, y
@@ -62,6 +69,11 @@ impl System {
             ) != 0
             {
                 panic!("SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,SDL_GL_CONTEXT_PROFILE_CORE.0 as _) failed")
+            }
+
+            // NOTE: needed only if stencil buffer is used (e.g. demo15)
+            if SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 1) != 0 {
+                panic!("SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 1) failed")
             }
 
             // create windows

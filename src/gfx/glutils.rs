@@ -124,7 +124,7 @@ pub fn load_texture(gl: &GlFns, filename: &str) -> Result<u32, String> {
             img.data.as_ptr().cast(),
         );
         check_gl_err(gl);
-        //gl.GenerateMipmap(gl33::GL_TEXTURE_2D);
+        gl.GenerateMipmap(gl33::GL_TEXTURE_2D);
     }
 
     Ok(texture)

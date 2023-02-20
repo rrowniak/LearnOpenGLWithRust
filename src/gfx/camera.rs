@@ -5,6 +5,8 @@ pub enum CamMovement {
     Backward,
     Left,
     Right,
+    Up,
+    Down,
 }
 pub struct Camera {
     // camera Attributes
@@ -68,6 +70,8 @@ impl Camera {
             CamMovement::Backward => self.position -= self.front * velocity,
             CamMovement::Left => self.position -= self.right * velocity,
             CamMovement::Right => self.position += self.right * velocity,
+            CamMovement::Up => self.position += self.up * velocity,
+            CamMovement::Down => self.position -= self.up * velocity,
         }
     }
 

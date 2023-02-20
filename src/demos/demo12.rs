@@ -91,13 +91,13 @@ impl DemoImpl {
         self.cube_shader = Shaders::from_files(
             &system.gl,
             "./demo/demo9_box.vs",
-            "./demo/demo12_box_SpotLight.fs",
+            "./demo/demo12_box_flashlight.fs",
         )?;
 
         self.cube_sm_shader = Shaders::from_files(
             &system.gl,
             "./demo/demo9_box.vs",
-            "./demo/demo12_box_specular_map_SpotLight.fs",
+            "./demo/demo12_box_specular_map_flashlight.fs",
         )?;
 
         self.texture = load_texture(&system.gl, "./demo/container2.png")?;

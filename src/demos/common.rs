@@ -1,5 +1,7 @@
 use crate::gfx::glutils::*;
+use crate::gfx::models::*;
 use gl33::*;
+use ultraviolet::*;
 
 macro_rules! impl_demo_trait {
     ($($t:ty),+ $(,)?) => ($(
@@ -284,5 +286,87 @@ pub fn gen_textured_box_3d(gl: &GlFns) -> u32 {
         gl_vertex_attrib_ptr_enab(gl, 1, 2, 5, 3);
 
         vao
+    }
+}
+
+// array format:
+// position.xyz normal.xyz tex_coords.xy
+pub fn setup_model_from_slice(d: &[f32]) -> Model {
+    let mut i = 0;
+    let mut model = Model::default();
+    model.meshes.push(Mesh::default());
+
+    loop {
+        let v = Vertex {
+            position: Vec3::new(d[i], d[i + 1], d[i + 2]),
+            normal: Vec3::new(d[i + 3], d[i + 4], d[i + 5]),
+            tex_coords: Vec2::new(d[i + 6], d[i + 7]),
+        };
+
+        model.meshes[0].vertices.push(v);
+        let vlen = model.meshes[0].vertices.len();
+        model.meshes[0].indices.push((vlen - 1) as u32);
+
+        i += 8;
+        if i >= d.len() {
+            break;
+        }
+    }
+    model
+}
+
+pub fn setup_model_box(d: [f32; 288]) -> Model {
+    setup_model_from_slice(&d)
+}
+
+#[rustfmt::skip]
+pub const DEFAULT_PLANE: [f32; 48] = [
+    // positions        // fake normals   // tex coords
+    5.0, -0.5,  5.0,    1.0, 0.0, 0.0,    2.0, 0.0,
+   -5.0, -0.5,  5.0,    1.0, 0.0, 0.0,    0.0, 0.0,
+   -5.0, -0.5, -5.0,    1.0, 0.0, 0.0,    0.0, 2.0,
+    5.0, -0.5,  5.0,    1.0, 0.0, 0.0,    2.0, 0.0,
+   -5.0, -0.5, -5.0,    1.0, 0.0, 0.0,    0.0, 2.0,
+    5.0, -0.5, -5.0,    1.0, 0.0, 0.0,    2.0, 2.0,
+];
+
+pub fn setup_model_plane(d: [f32; 48]) -> Model {
+    setup_model_from_slice(&d)
+}
+
+pub mod stencil {
+    use gl33::*;
+
+    pub fn select_eff_off(gl: &GlFns) {
+        unsafe {
+            gl.Enable(gl33::GL_DEPTH_TEST);
+
+            gl.StencilOp(gl33::GL_KEEP, gl33::GL_KEEP, gl33::GL_REPLACE);
+            gl.Clear(gl33::GL_STENCIL_BUFFER_BIT);
+            gl.StencilMask(0x00);
+        }
+    }
+
+    pub fn select_eff_prepare(gl: &GlFns) {
+        unsafe {
+            gl.StencilFunc(gl33::GL_ALWAYS, 1, 0xff);
+            gl.StencilMask(0xff);
+        }
+    }
+
+    pub fn select_eff_begin(gl: &GlFns) {
+        unsafe {
+            gl.StencilFunc(gl33::GL_NOTEQUAL, 1, 0xff);
+            gl.StencilMask(0x00);
+            gl.Disable(gl33::GL_DEPTH_TEST);
+        }
+    }
+
+    pub fn select_eff_end(gl: &GlFns) {
+        unsafe {
+            gl.StencilFunc(gl33::GL_ALWAYS, 1, 0xff);
+            gl.StencilMask(0xff);
+            gl.Enable(gl33::GL_DEPTH_TEST);
+        }
     }
 }
