@@ -64,13 +64,36 @@ pub struct DemoImpl {
     tex_cube: u32,
     obj_plane: ModelWrapT,
     tex_plane: u32,
+    obj_grass: ModelWrapT,
+    tex_grass: u32,
     shader: Shaders,
     stencil_shader: Shaders,
+    discard_shader: Shaders,
     timer: Instant,
     first_logic_pass: bool,
     camera: Camera,
     io_flags: BitFields<u16>,
 }
+
+const GRASS_POSITIONS: [Vec3; 5] = [
+    Vec3::new(-1.5, 0.0, -0.48),
+    Vec3::new(1.5, 0.0, 0.51),
+    Vec3::new(0.0, 0.0, 0.7),
+    Vec3::new(-0.3, 0.0, -2.3),
+    Vec3::new(0.5, 0.0, -0.6),
+];
+
+#[rustfmt::skip]
+const GRASS_QUAD: [f32; 48] = [
+    // positions      // fake normals   // texture Coords (swapped y coordinates because texture is flipped upside down)
+    0.0,  0.5,  0.0,  1.0, 0.0, 0.0,     0.0, 1.0, // 0.0,  0.0,
+    0.0, -0.5,  0.0,  1.0, 0.0, 0.0,     0.0, 0.0, // 0.0,  1.0,
+    1.0, -0.5,  0.0,  1.0, 0.0, 0.0,     1.0, 0.0, // 1.0,  1.0,
+
+    0.0,  0.5,  0.0,  1.0, 0.0, 0.0,     0.0, 1.0, // 0.0,  0.0,
+    1.0, -0.5,  0.0,  1.0, 0.0, 0.0,     1.0, 0.0,// 1.0,  1.0,
+    1.0,  0.5,  0.0,  1.0, 0.0, 0.0,     1.0, 1.0,// 1.0,  0.0,
+];
 
 impl DemoImpl {
     fn new() -> Self {
@@ -80,14 +103,18 @@ impl DemoImpl {
             tex_cube: 0,
             obj_plane: ModelWrapT::None,
             tex_plane: 0,
+            obj_grass: ModelWrapT::None,
+            tex_grass: 0,
             shader: Shaders::default(),
             stencil_shader: Shaders::default(),
+            discard_shader: Shaders::default(),
             timer: Instant::now(),
             first_logic_pass: true,
             camera: Camera::new(),
             io_flags: BitFields::<u16>::default(),
         }
     }
+
     fn init(&mut self, system: &system::System) -> Result<(), String> {
         // for stencil
         unsafe {
@@ -100,16 +127,28 @@ impl DemoImpl {
 
         self.obj_cube = ModelWrapT::Some(Box::new(setup_model_box(DEFAULT_POS_NORM_TEX_CUBE_VERT)));
         self.obj_plane = ModelWrapT::Some(Box::new(setup_model_plane(DEFAULT_PLANE)));
+        self.obj_grass = ModelWrapT::Some(Box::new(setup_model_plane(GRASS_QUAD)));
 
         self.obj_cube.as_mut().unwrap().setup(&system.gl)?;
         self.obj_plane.as_mut().unwrap().setup(&system.gl)?;
+        self.obj_grass.as_mut().unwrap().setup(&system.gl)?;
 
         self.tex_cube = load_texture(&system.gl, "./demo/marble.jpg")?;
         self.tex_plane = load_texture(&system.gl, "./demo/metal.png")?;
+        use gl33::*;
+        let params = [
+            (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE),
+            (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE),
+            (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR),
+            (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR),
+        ];
+        self.tex_grass = load_texture_params(&system.gl, "./demo/grass.png", &params)?;
 
         self.shader = Shaders::from_files(&system.gl, "./demo/demo15.vs", "./demo/demo15.fs")?;
         self.stencil_shader =
             Shaders::from_files(&system.gl, "./demo/demo15.vs", "./demo/demo15_monocol.fs")?;
+        self.discard_shader =
+            Shaders::from_files(&system.gl, "./demo/demo15.vs", "./demo/demo15_discard.fs")?;
 
         Ok(())
     }
@@ -249,6 +288,13 @@ impl DemoImpl {
         stencil::select_eff_end(&system.gl);
         ///////////////////////////////////////////////////////////////////////////
 
+        // draw grass
+        for v in GRASS_POSITIONS {
+            self.mvp.model = Mat4::default();
+            self.mvp.model.translate(&v);
+            self.draw_grass(&system.gl);
+        }
+
         Ok(())
     }
 
@@ -292,5 +338,19 @@ impl DemoImpl {
 
         self.mvp.pass_uniforms(gl, &self.shader);
         self.obj_cube.as_mut().unwrap().draw(gl, &self.shader);
+    }
+
+    fn draw_grass(&mut self, gl: &gl33::GlFns) {
+        self.discard_shader.use_program(gl);
+        unsafe {
+            gl.ActiveTexture(gl33::GL_TEXTURE0);
+            gl.BindTexture(gl33::GL_TEXTURE_2D, self.tex_grass);
+        }
+
+        self.mvp.pass_uniforms(gl, &self.shader);
+        self.obj_grass
+            .as_mut()
+            .unwrap()
+            .draw(gl, &self.discard_shader);
     }
 }

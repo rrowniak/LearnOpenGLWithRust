@@ -1,6 +1,12 @@
 # Learn OpenGL in Rust
 This repository contains examples based on the excellent book *"Learn OpenGL - Graphics Programming" by Joey de Vries*. The code in this repository reimplements the concepts from the book using the Rust programming language and includes experiments and refactored results.
 
+This repository is a great starting point for anyone interested in experimenting with Rust and OpenGL. Whether you're a beginner looking to learn more about graphics programming, or an experienced developer wanting to explore new possibilities, this project provides a solid foundation for your experiments.
+
+Additionally, this repository can be used as a sandbox for creating more advanced projects, such as games or game engines. Our focus is on using good Rust practices and idioms, so you can be sure that your code will be not only functional, but also efficient, safe, and idiomatic.
+
+We welcome contributions and ideas from anyone who shares our passion for Rust and OpenGL. So if you're interested in pushing the boundaries of graphics programming in Rust, join us and let's create something amazing together!
+
 Note: This code has only been tested on Linux.
 
 The following is a list of the currently implemented examples:
@@ -22,6 +28,7 @@ The following is a list of the currently implemented examples:
 - `demo14`: Covers loading 3D models using the assimp library from the "Model loading" section of the book.
 ![Demo14 screenshot](doc/screen2.jpg)
 - `demo15`: Covers depth testing, stencil testing, blending and face culling from the "Advanced OpenGL" section of the book.
+
 More coming soon!
 
 ## Purpose
