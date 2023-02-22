@@ -66,6 +66,8 @@ pub struct DemoImpl {
     tex_plane: u32,
     obj_grass: ModelWrapT,
     tex_grass: u32,
+    obj_transparent: ModelWrapT,
+    tex_transparent: u32,
     shader: Shaders,
     stencil_shader: Shaders,
     discard_shader: Shaders,
@@ -80,7 +82,7 @@ const GRASS_POSITIONS: [Vec3; 5] = [
     Vec3::new(1.5, 0.0, 0.51),
     Vec3::new(0.0, 0.0, 0.7),
     Vec3::new(-0.3, 0.0, -2.3),
-    Vec3::new(0.5, 0.0, -0.6),
+    Vec3::new(1.5, 0.0, 2.6),
 ];
 
 #[rustfmt::skip]
@@ -95,6 +97,26 @@ const GRASS_QUAD: [f32; 48] = [
     1.0,  0.5,  0.0,  1.0, 0.0, 0.0,     1.0, 1.0,// 1.0,  0.0,
 ];
 
+const WINDOW_POSITIONS: [Vec3; 5] = [
+    Vec3::new(-0.3, 0.0, -2.3),
+    Vec3::new(-1.7, 0.0, -1.48),
+    Vec3::new(1.5, 0.0, 0.6),
+    Vec3::new(1.5, 0.0, 1.51),
+    Vec3::new(0.0, 0.0, 1.7),
+];
+
+#[rustfmt::skip]
+const TRANSPARENT_QUAD: [f32; 48] = [
+    // positions        // fake normals   // texture Coords (swapped y coordinates because texture is flipped upside down)
+    0.0,  0.5,  0.0,    1.0, 0.0, 0.0,    0.0,  1.0,
+    0.0, -0.5,  0.0,    1.0, 0.0, 0.0,    0.0,  0.0,
+    1.0, -0.5,  0.0,    1.0, 0.0, 0.0,    1.0,  0.0,
+
+    0.0,  0.5,  0.0,    1.0, 0.0, 0.0,    0.0,  1.0,
+    1.0, -0.5,  0.0,    1.0, 0.0, 0.0,    1.0,  0.0,
+    1.0,  0.5,  0.0,    1.0, 0.0, 0.0,    1.0,  1.0
+];
+
 impl DemoImpl {
     fn new() -> Self {
         DemoImpl {
@@ -105,6 +127,8 @@ impl DemoImpl {
             tex_plane: 0,
             obj_grass: ModelWrapT::None,
             tex_grass: 0,
+            obj_transparent: ModelWrapT::None,
+            tex_transparent: 0,
             shader: Shaders::default(),
             stencil_shader: Shaders::default(),
             discard_shader: Shaders::default(),
@@ -118,7 +142,9 @@ impl DemoImpl {
     fn init(&mut self, system: &system::System) -> Result<(), String> {
         // for stencil
         unsafe {
-            system.gl.Enable(gl33::GL_STENCIL_TEST);
+            system.gl.Enable(GL_STENCIL_TEST);
+            system.gl.Enable(GL_BLEND);
+            system.gl.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }
 
         self.build_projection_matrix(system, 45.0f32.to_radians());
@@ -128,10 +154,12 @@ impl DemoImpl {
         self.obj_cube = ModelWrapT::Some(Box::new(setup_model_box(DEFAULT_POS_NORM_TEX_CUBE_VERT)));
         self.obj_plane = ModelWrapT::Some(Box::new(setup_model_plane(DEFAULT_PLANE)));
         self.obj_grass = ModelWrapT::Some(Box::new(setup_model_plane(GRASS_QUAD)));
+        self.obj_transparent = ModelWrapT::Some(Box::new(setup_model_plane(TRANSPARENT_QUAD)));
 
         self.obj_cube.as_mut().unwrap().setup(&system.gl)?;
         self.obj_plane.as_mut().unwrap().setup(&system.gl)?;
         self.obj_grass.as_mut().unwrap().setup(&system.gl)?;
+        self.obj_transparent.as_mut().unwrap().setup(&system.gl)?;
 
         self.tex_cube = load_texture(&system.gl, "./demo/marble.jpg")?;
         self.tex_plane = load_texture(&system.gl, "./demo/metal.png")?;
@@ -143,6 +171,7 @@ impl DemoImpl {
             (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR),
         ];
         self.tex_grass = load_texture_params(&system.gl, "./demo/grass.png", &params)?;
+        self.tex_transparent = load_texture_params(&system.gl, "./demo/window.png", &params)?;
 
         self.shader = Shaders::from_files(&system.gl, "./demo/demo15.vs", "./demo/demo15.fs")?;
         self.stencil_shader =
@@ -295,6 +324,14 @@ impl DemoImpl {
             self.draw_grass(&system.gl);
         }
 
+        // draw transparent windows
+        // Note: rendering order shall be from the most distant window
+        for v in WINDOW_POSITIONS {
+            self.mvp.model = Mat4::default();
+            self.mvp.model.translate(&v);
+            self.draw_window(&system.gl);
+        }
+
         Ok(())
     }
 
@@ -336,8 +373,11 @@ impl DemoImpl {
             gl.BindTexture(gl33::GL_TEXTURE_2D, self.tex_cube);
         }
 
-        self.mvp.pass_uniforms(gl, &self.shader);
-        self.obj_cube.as_mut().unwrap().draw(gl, &self.shader);
+        self.mvp.pass_uniforms(gl, &self.stencil_shader);
+        self.obj_cube
+            .as_mut()
+            .unwrap()
+            .draw(gl, &self.stencil_shader);
     }
 
     fn draw_grass(&mut self, gl: &gl33::GlFns) {
@@ -347,10 +387,21 @@ impl DemoImpl {
             gl.BindTexture(gl33::GL_TEXTURE_2D, self.tex_grass);
         }
 
-        self.mvp.pass_uniforms(gl, &self.shader);
+        self.mvp.pass_uniforms(gl, &self.discard_shader);
         self.obj_grass
             .as_mut()
             .unwrap()
             .draw(gl, &self.discard_shader);
+    }
+
+    fn draw_window(&mut self, gl: &gl33::GlFns) {
+        self.shader.use_program(gl);
+        unsafe {
+            gl.ActiveTexture(gl33::GL_TEXTURE0);
+            gl.BindTexture(gl33::GL_TEXTURE_2D, self.tex_transparent);
+        }
+
+        self.mvp.pass_uniforms(gl, &self.shader);
+        self.obj_grass.as_mut().unwrap().draw(gl, &self.shader);
     }
 }
