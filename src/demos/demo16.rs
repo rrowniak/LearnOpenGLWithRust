@@ -5,6 +5,7 @@ use crate::gfx::lights::VSMatrices;
 use crate::gfx::models::*;
 use crate::gfx::shaders::*;
 use crate::gfx::{glutils::*, system, system::IoEvents, utils::*};
+use gl33::GlFns;
 use std::time::Instant;
 use ultraviolet::*;
 
@@ -58,64 +59,49 @@ const KEY_DEL: u16 = 0b_0000_0010_0000_0000;
 
 type ModelWrapT = Option<Box<Model>>;
 
+const VERTEX_CODE: &str = "
+#version 330 core
+layout (location = 0) in vec2 aPos;
+layout (location = 2) in vec2 aTexCoords;
+
+out vec2 TexCoords;
+
+void main()
+{
+    gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0); 
+    TexCoords = aTexCoords;
+}  
+";
+
+const FRAGMENT_CODE: &str = "
+#version 330 core
+out vec4 FragColor;
+  
+in vec2 TexCoords;
+
+uniform sampler2D screenTexture;
+
+void main()
+{ 
+    FragColor = texture(screenTexture, TexCoords);
+}
+";
+
 pub struct DemoImpl {
     mvp: VSMatrices,
     obj_cube: ModelWrapT,
     tex_cube: u32,
     obj_plane: ModelWrapT,
+    obj_plane2: ModelWrapT,
     tex_plane: u32,
-    obj_grass: ModelWrapT,
-    tex_grass: u32,
-    obj_transparent: ModelWrapT,
-    tex_transparent: u32,
     shader: Shaders,
-    stencil_shader: Shaders,
-    discard_shader: Shaders,
+    quad_shader: Shaders,
+    frame_buffer: FrameBuffer,
     timer: Instant,
     first_logic_pass: bool,
     camera: Camera,
     io_flags: BitFields<u16>,
 }
-
-const GRASS_POSITIONS: [Vec3; 5] = [
-    Vec3::new(-1.5, 0.0, -0.48),
-    Vec3::new(1.5, 0.0, 0.51),
-    Vec3::new(0.0, 0.0, 0.7),
-    Vec3::new(-0.3, 0.0, -2.3),
-    Vec3::new(1.5, 0.0, 2.6),
-];
-
-#[rustfmt::skip]
-const GRASS_QUAD: [f32; 48] = [
-    // positions      // fake normals   // texture Coords (swapped y coordinates because texture is flipped upside down)
-    0.0,  0.5,  0.0,  1.0, 0.0, 0.0,     0.0, 1.0, // 0.0,  0.0,
-    0.0, -0.5,  0.0,  1.0, 0.0, 0.0,     0.0, 0.0, // 0.0,  1.0,
-    1.0, -0.5,  0.0,  1.0, 0.0, 0.0,     1.0, 0.0, // 1.0,  1.0,
-
-    0.0,  0.5,  0.0,  1.0, 0.0, 0.0,     0.0, 1.0, // 0.0,  0.0,
-    1.0, -0.5,  0.0,  1.0, 0.0, 0.0,     1.0, 0.0,// 1.0,  1.0,
-    1.0,  0.5,  0.0,  1.0, 0.0, 0.0,     1.0, 1.0,// 1.0,  0.0,
-];
-
-const WINDOW_POSITIONS: [Vec3; 5] = [
-    Vec3::new(-0.3, 0.0, -2.3),
-    Vec3::new(-1.7, 0.0, -1.48),
-    Vec3::new(1.5, 0.0, 0.6),
-    Vec3::new(1.5, 0.0, 1.51),
-    Vec3::new(0.0, 0.0, 1.7),
-];
-
-#[rustfmt::skip]
-const TRANSPARENT_QUAD: [f32; 48] = [
-    // positions        // fake normals   // texture Coords (swapped y coordinates because texture is flipped upside down)
-    0.0,  0.5,  0.0,    1.0, 0.0, 0.0,    0.0,  1.0,
-    0.0, -0.5,  0.0,    1.0, 0.0, 0.0,    0.0,  0.0,
-    1.0, -0.5,  0.0,    1.0, 0.0, 0.0,    1.0,  0.0,
-
-    0.0,  0.5,  0.0,    1.0, 0.0, 0.0,    0.0,  1.0,
-    1.0, -0.5,  0.0,    1.0, 0.0, 0.0,    1.0,  0.0,
-    1.0,  0.5,  0.0,    1.0, 0.0, 0.0,    1.0,  1.0
-];
 
 impl DemoImpl {
     fn new() -> Self {
@@ -124,14 +110,11 @@ impl DemoImpl {
             obj_cube: ModelWrapT::None,
             tex_cube: 0,
             obj_plane: ModelWrapT::None,
+            obj_plane2: ModelWrapT::None,
             tex_plane: 0,
-            obj_grass: ModelWrapT::None,
-            tex_grass: 0,
-            obj_transparent: ModelWrapT::None,
-            tex_transparent: 0,
             shader: Shaders::default(),
-            stencil_shader: Shaders::default(),
-            discard_shader: Shaders::default(),
+            quad_shader: Shaders::default(),
+            frame_buffer: Default::default(),
             timer: Instant::now(),
             first_logic_pass: true,
             camera: Camera::new(),
@@ -140,48 +123,35 @@ impl DemoImpl {
     }
 
     fn init(&mut self, system: &system::System) -> Result<(), String> {
-        // for stencil
-        unsafe {
-            system.gl.Enable(GL_STENCIL_TEST);
-
-            system.gl.Enable(GL_BLEND);
-            system.gl.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-            // better off enabling/discabling culling per obeject
-            // system.gl.Enable(GL_CULL_FACE);
-        }
-
         self.build_projection_matrix(system, 45.0f32.to_radians());
         self.camera.position.z += 7.0;
         self.camera.mouse_sensitivity = 0.1;
 
         self.obj_cube = ModelWrapT::Some(Box::new(setup_model_box(DEFAULT_POS_NORM_TEX_CUBE_VERT)));
         self.obj_plane = ModelWrapT::Some(Box::new(setup_model_plane(DEFAULT_PLANE)));
-        self.obj_grass = ModelWrapT::Some(Box::new(setup_model_plane(GRASS_QUAD)));
-        self.obj_transparent = ModelWrapT::Some(Box::new(setup_model_plane(TRANSPARENT_QUAD)));
+        self.obj_plane2 = ModelWrapT::Some(Box::new(setup_model_plane(DEFAULT_PLANE2)));
 
         self.obj_cube.as_mut().unwrap().setup(&system.gl)?;
         self.obj_plane.as_mut().unwrap().setup(&system.gl)?;
-        self.obj_grass.as_mut().unwrap().setup(&system.gl)?;
-        self.obj_transparent.as_mut().unwrap().setup(&system.gl)?;
+        self.obj_plane2.as_mut().unwrap().setup(&system.gl)?;
 
         self.tex_cube = load_texture(&system.gl, "./demo/marble.jpg")?;
         self.tex_plane = load_texture(&system.gl, "./demo/metal.png")?;
-        use gl33::*;
-        let params = [
-            (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE),
-            (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE),
-            (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR),
-            (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR),
-        ];
-        self.tex_grass = load_texture_params(&system.gl, "./demo/grass.png", &params)?;
-        self.tex_transparent = load_texture_params(&system.gl, "./demo/window.png", &params)?;
 
         self.shader = Shaders::from_files(&system.gl, "./demo/demo15.vs", "./demo/demo15.fs")?;
-        self.stencil_shader =
-            Shaders::from_files(&system.gl, "./demo/demo15.vs", "./demo/demo15_monocol.fs")?;
-        self.discard_shader =
-            Shaders::from_files(&system.gl, "./demo/demo15.vs", "./demo/demo15_discard.fs")?;
+
+        self.quad_shader = Shaders::from_str(&system.gl, VERTEX_CODE, FRAGMENT_CODE)?;
+
+        self.frame_buffer = FrameBuffer::new(&system.gl);
+        self.frame_buffer.bind(&system.gl);
+        self.frame_buffer
+            .attach_texture(&system.gl, system.w, system.h);
+        self.frame_buffer
+            .attach_depth_stencil(&system.gl, system.w, system.h);
+        self.frame_buffer
+            .attach_render_buffer(&system.gl, system.w, system.h);
+        self.frame_buffer.check_success_or_panic(&system.gl);
+        self.frame_buffer.unbind(&system.gl);
 
         Ok(())
     }
@@ -276,65 +246,34 @@ impl DemoImpl {
     }
 
     fn render(&mut self, system: &system::System) -> Result<(), String> {
-        // disable stencil effect
-        stencil::select_eff_off(&system.gl);
-
         self.mvp.view = self.camera.get_view_matrix();
+
+        self.frame_buffer.bind(&system.gl);
+        self.frame_buffer.clear(&system.gl);
 
         // Draw Plane
         self.mvp.model = Mat4::default();
         self.draw_plane(&system.gl);
 
-        // Draw Cube
+        // Draw Cube 1
         self.mvp.model = Mat4::default();
         self.mvp.model.translate(&Vec3::new(0.0, 0.0, -4.5));
         self.draw_cube(&system.gl);
 
-        ///////////////////////////////////////////////////////////////////////////
-        // Begin stencil effect
-        ///////////////////////////////////////////////////////////////////////////
-        stencil::select_eff_prepare(&system.gl);
-
-        // Draw Cube stencil 1
+        // Draw Cube 2
         self.mvp.model = Mat4::default();
         self.mvp.model.translate(&Vec3::new(1.0, 0.0, 0.0));
         self.draw_cube(&system.gl);
 
-        // Draw Cube stencil 2
+        // Draw Cube 3
         self.mvp.model = Mat4::default();
         self.mvp.model.translate(&Vec3::new(-1.0, 0.0, 0.0));
         self.draw_cube(&system.gl);
 
-        ///////////////////////////////////////////////////////////////////////////
-        // Draw scaled objects
-        stencil::select_eff_begin(&system.gl);
-        // Draw Cube stencil 1
-        self.mvp.model = Mat4::from_scale(1.1);
-        self.mvp.model.translate(&Vec3::new(1.0, 0.0, 0.0));
-        self.draw_cube_st_eff(&system.gl);
+        self.frame_buffer.unbind(&system.gl);
 
-        // Draw Cube stencil 2
-        self.mvp.model = Mat4::from_scale(1.1);
-        self.mvp.model.translate(&Vec3::new(-1.0, 0.0, 0.0));
-        self.draw_cube_st_eff(&system.gl);
-
-        stencil::select_eff_end(&system.gl);
-        ///////////////////////////////////////////////////////////////////////////
-
-        // draw grass
-        for v in GRASS_POSITIONS {
-            self.mvp.model = Mat4::default();
-            self.mvp.model.translate(&v);
-            self.draw_grass(&system.gl);
-        }
-
-        // draw transparent windows
-        // Note: rendering order shall be from the most distant window
-        for v in WINDOW_POSITIONS {
-            self.mvp.model = Mat4::default();
-            self.mvp.model.translate(&v);
-            self.draw_window(&system.gl);
-        }
+        self.mvp.model = Mat4::default();
+        self.draw_plane_from_fb_tex(&system.gl);
 
         Ok(())
     }
@@ -370,42 +309,176 @@ impl DemoImpl {
         self.obj_cube.as_mut().unwrap().draw(gl, &self.shader);
     }
 
-    fn draw_cube_st_eff(&mut self, gl: &gl33::GlFns) {
-        self.stencil_shader.use_program(gl);
-        unsafe {
-            gl.ActiveTexture(gl33::GL_TEXTURE0);
-            gl.BindTexture(gl33::GL_TEXTURE_2D, self.tex_cube);
-        }
-
-        self.mvp.pass_uniforms(gl, &self.stencil_shader);
-        self.obj_cube
-            .as_mut()
-            .unwrap()
-            .draw(gl, &self.stencil_shader);
-    }
-
-    fn draw_grass(&mut self, gl: &gl33::GlFns) {
-        self.discard_shader.use_program(gl);
-        unsafe {
-            gl.ActiveTexture(gl33::GL_TEXTURE0);
-            gl.BindTexture(gl33::GL_TEXTURE_2D, self.tex_grass);
-        }
-
-        self.mvp.pass_uniforms(gl, &self.discard_shader);
-        self.obj_grass
-            .as_mut()
-            .unwrap()
-            .draw(gl, &self.discard_shader);
-    }
-
-    fn draw_window(&mut self, gl: &gl33::GlFns) {
+    fn draw_plane_from_fb_tex(&mut self, gl: &gl33::GlFns) {
         self.shader.use_program(gl);
         unsafe {
             gl.ActiveTexture(gl33::GL_TEXTURE0);
-            gl.BindTexture(gl33::GL_TEXTURE_2D, self.tex_transparent);
+            gl.BindTexture(gl33::GL_TEXTURE_2D, self.frame_buffer.tex[0]);
         }
-
         self.mvp.pass_uniforms(gl, &self.shader);
-        self.obj_grass.as_mut().unwrap().draw(gl, &self.shader);
+
+        self.obj_plane2.as_mut().unwrap().draw(gl, &self.shader);
+    }
+}
+
+#[derive(Default)]
+struct FrameBuffer {
+    bound: bool,
+    fbo: u32,
+    rbo: u32,
+    tex: Vec<u32>,
+}
+
+impl FrameBuffer {
+    fn new(gl: &GlFns) -> Self {
+        let mut fb = Self {
+            bound: false,
+            fbo: 0,
+            rbo: 0,
+            tex: Default::default(),
+        };
+        unsafe {
+            gl.GenFramebuffers(1, &mut fb.fbo);
+        }
+        fb
+    }
+
+    fn bind(&mut self, gl: &GlFns) {
+        unsafe {
+            gl.BindFramebuffer(gl33::GL_FRAMEBUFFER, self.fbo);
+        }
+        self.bound = true;
+    }
+
+    fn unbind(&mut self, gl: &GlFns) {
+        self.bound = false;
+        unsafe {
+            gl.BindFramebuffer(gl33::GL_FRAMEBUFFER, 0);
+        }
+    }
+
+    fn clear(&self, gl: &GlFns) {
+        unsafe {
+            gl.ClearColor(0.2, 0.1, 0.2, 1.0);
+            gl.Clear(gl33::GL_COLOR_BUFFER_BIT | gl33::GL_DEPTH_BUFFER_BIT); // we're not using the stencil buffer now
+            gl.Enable(gl33::GL_DEPTH_TEST);
+        }
+    }
+
+    fn attach_texture(&mut self, gl: &GlFns, w: usize, h: usize) -> u32 {
+        if !self.bound {
+            panic!("Call Self.bind() first!")
+        }
+        self.tex.push(0);
+        let tex = self.tex.last_mut().unwrap();
+        unsafe {
+            gl.GenTextures(1, &mut *tex);
+            gl.BindTexture(gl33::GL_TEXTURE_2D, *tex);
+            gl.TexImage2D(
+                gl33::GL_TEXTURE_2D,
+                0,
+                gl33::GL_RGB.0 as i32,
+                w as i32,
+                h as i32,
+                0,
+                gl33::GL_RGB,
+                gl33::GL_UNSIGNED_BYTE,
+                std::ptr::null(),
+            );
+
+            gl.TexParameteri(
+                gl33::GL_TEXTURE_2D,
+                gl33::GL_TEXTURE_MIN_FILTER,
+                gl33::GL_LINEAR.0 as i32,
+            );
+            gl.TexParameteri(
+                gl33::GL_TEXTURE_2D,
+                gl33::GL_TEXTURE_MAG_FILTER,
+                gl33::GL_LINEAR.0 as i32,
+            );
+            // unbind texture
+            gl.BindTexture(gl33::GL_TEXTURE_2D, 0);
+
+            gl.FramebufferTexture2D(
+                gl33::GL_FRAMEBUFFER,
+                gl33::GL_COLOR_ATTACHMENT0,
+                gl33::GL_TEXTURE_2D,
+                *tex,
+                0,
+            );
+        }
+        *self.tex.last().unwrap()
+    }
+
+    fn attach_depth_stencil(&mut self, gl: &GlFns, w: usize, h: usize) -> u32 {
+        if !self.bound {
+            panic!("Call Self.bind() first!")
+        }
+        self.tex.push(0);
+        let tex = self.tex.last_mut().unwrap();
+        unsafe {
+            gl.GenTextures(1, &mut *tex);
+            gl.BindTexture(gl33::GL_TEXTURE_2D, *tex);
+            gl.TexImage2D(
+                gl33::GL_TEXTURE_2D,
+                0,
+                gl33::GL_DEPTH24_STENCIL8.0 as i32,
+                w as i32,
+                h as i32,
+                0,
+                gl33::GL_DEPTH_STENCIL,
+                gl33::GL_UNSIGNED_INT_24_8,
+                std::ptr::null(),
+            );
+            gl.BindTexture(gl33::GL_TEXTURE_2D, 0);
+
+            gl.FramebufferTexture2D(
+                gl33::GL_FRAMEBUFFER,
+                gl33::GL_DEPTH_STENCIL_ATTACHMENT,
+                gl33::GL_TEXTURE_2D,
+                *tex,
+                0,
+            );
+        }
+        *self.tex.last().unwrap()
+    }
+
+    fn attach_render_buffer(&mut self, gl: &GlFns, w: usize, h: usize) {
+        if !self.bound {
+            panic!("Call Self.bind() first!")
+        }
+        unsafe {
+            gl.GenRenderbuffers(1, &mut self.rbo);
+            gl.BindRenderbuffer(gl33::GL_RENDERBUFFER, self.rbo);
+            gl.RenderbufferStorage(
+                gl33::GL_RENDERBUFFER,
+                gl33::GL_DEPTH24_STENCIL8,
+                w as i32,
+                h as i32,
+            );
+            gl.BindRenderbuffer(gl33::GL_RENDERBUFFER, 0);
+
+            gl.FramebufferRenderbuffer(
+                gl33::GL_FRAMEBUFFER,
+                gl33::GL_DEPTH_STENCIL_ATTACHMENT,
+                gl33::GL_RENDERBUFFER,
+                self.rbo,
+            );
+        }
+    }
+
+    fn check_success_or_panic(&self, gl: &GlFns) {
+        unsafe {
+            if gl.CheckFramebufferStatus(gl33::GL_FRAMEBUFFER) != gl33::GL_FRAMEBUFFER_COMPLETE {
+                panic!("framebuffer is not completed");
+            }
+        }
+    }
+
+    fn delete(&mut self, gl: &GlFns) {
+        unsafe {
+            gl.DeleteFramebuffers(1, &self.fbo);
+            self.fbo = 0;
+        }
     }
 }

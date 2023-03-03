@@ -6,6 +6,7 @@ mod demo12;
 mod demo13;
 mod demo14;
 mod demo15;
+mod demo16;
 mod demo2;
 mod demo3;
 mod demo4;
@@ -90,6 +91,12 @@ static DEMO15: demo15::DemoN = demo15::DemoN {
     description: "Learn OpenGL - Graphics Programming ('Advanced OpenGL'): depth testing, stencil testing, blending and face culling",
 };
 
+static DEMO16: demo16::DemoN = demo16::DemoN {
+    name: "demo16",
+    description:
+        "Learn OpenGL - Graphics Programming ('Advanced OpenGL'): framebuffers and kernel effects",
+};
+
 pub trait Demo {
     fn run(&self) -> Result<(), String>;
     fn name(&self) -> String;
@@ -99,6 +106,6 @@ pub trait Demo {
 pub fn get_all_demos() -> Vec<&'static dyn Demo> {
     vec![
         &DEMO1, &DEMO2, &DEMO3, &DEMO4, &DEMO5, &DEMO6, &DEMO7, &DEMO8, &DEMO9, &DEMO10, &DEMO11,
-        &DEMO12, &DEMO13, &DEMO14, &DEMO15,
+        &DEMO12, &DEMO13, &DEMO14, &DEMO15, &DEMO16,
     ]
 }
