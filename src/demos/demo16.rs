@@ -4,8 +4,7 @@ use crate::gfx::camera::{CamMovement, Camera};
 use crate::gfx::lights::VSMatrices;
 use crate::gfx::models::*;
 use crate::gfx::shaders::*;
-use crate::gfx::{glutils::*, system, system::IoEvents, utils::*};
-use gl33::GlFns;
+use crate::gfx::{framebuffer::*, glutils::*, system, system::IoEvents, utils::*};
 use std::time::Instant;
 use ultraviolet::*;
 
@@ -61,41 +60,208 @@ type ModelWrapT = Option<Box<Model>>;
 
 const VERTEX_CODE: &str = "
 #version 330 core
-layout (location = 0) in vec2 aPos;
+layout (location = 0) in vec3 aPos;
 layout (location = 2) in vec2 aTexCoords;
 
 out vec2 TexCoords;
 
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+
 void main()
 {
-    gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0); 
-    TexCoords = aTexCoords;
-}  
+    TexCoords = aTexCoords;    
+    gl_Position = projection * view * model * vec4(aPos, 1.0f);
+} 
 ";
 
 const FRAGMENT_CODE: &str = "
 #version 330 core
 out vec4 FragColor;
-  
+
 in vec2 TexCoords;
 
-uniform sampler2D screenTexture;
+uniform sampler2D texture1;
 
 void main()
-{ 
-    FragColor = texture(screenTexture, TexCoords);
+{    
+    FragColor = texture(texture1, TexCoords);
+}
+";
+
+const FRAGMENT_CODE_INV: &str = "
+#version 330 core
+out vec4 FragColor;
+
+in vec2 TexCoords;
+
+uniform sampler2D texture1;
+
+void main()
+{    
+    FragColor = vec4(vec3(1.0 - texture(texture1, TexCoords)), 1.0);
+}
+";
+
+const FRAGMENT_CODE_GREYSCALE: &str = "
+#version 330 core
+out vec4 FragColor;
+
+in vec2 TexCoords;
+
+uniform sampler2D texture1;
+
+void main()
+{    
+    FragColor = texture(texture1, TexCoords);
+    float average = 0.2126 * FragColor.r + 0.7152 * FragColor.g + 0.0722 * FragColor.b;
+    FragColor = vec4(average, average, average, 1.0);
+}
+";
+
+const FRAGMENT_CODE_KERN1: &str = "
+#version 330 core
+out vec4 FragColor;
+
+in vec2 TexCoords;
+
+uniform sampler2D texture1;
+
+const float offset = 1.0 / 300.0;
+
+void main()
+{    
+    vec2 offsets[9] = vec2[](
+        vec2(-offset,  offset), // top-left
+        vec2( 0.0f,    offset), // top-center
+        vec2( offset,  offset), // top-right
+        vec2(-offset,  0.0f),   // center-left
+        vec2( 0.0f,    0.0f),   // center-center
+        vec2( offset,  0.0f),   // center-right
+        vec2(-offset, -offset), // bottom-left
+        vec2( 0.0f,   -offset), // bottom-center
+        vec2( offset, -offset)  // bottom-right    
+    );
+
+    float kernel[9] = float[](
+        -1, -1, -1,
+        -1,  9, -1,
+        -1, -1, -1
+    );
+    
+    vec3 sampleTex[9];
+    for(int i = 0; i < 9; i++)
+    {
+        sampleTex[i] = vec3(texture(texture1, TexCoords.st + offsets[i]));
+    }
+    vec3 col = vec3(0.0);
+    for(int i = 0; i < 9; i++)
+        col += sampleTex[i] * kernel[i];
+    
+    FragColor = vec4(col, 1.0);
+}
+";
+
+const FRAGMENT_CODE_KERN2: &str = "
+#version 330 core
+out vec4 FragColor;
+
+in vec2 TexCoords;
+
+uniform sampler2D texture1;
+
+const float offset = 1.0 / 300.0;
+
+void main()
+{    
+    vec2 offsets[9] = vec2[](
+        vec2(-offset,  offset), // top-left
+        vec2( 0.0f,    offset), // top-center
+        vec2( offset,  offset), // top-right
+        vec2(-offset,  0.0f),   // center-left
+        vec2( 0.0f,    0.0f),   // center-center
+        vec2( offset,  0.0f),   // center-right
+        vec2(-offset, -offset), // bottom-left
+        vec2( 0.0f,   -offset), // bottom-center
+        vec2( offset, -offset)  // bottom-right    
+    );
+
+    float kernel[9] = float[](
+        1.0 / 16, 2.0 / 16, 1.0 / 16,
+        2.0 / 16, 4.0 / 16, 2.0 / 16,
+        1.0 / 16, 2.0 / 16, 1.0 / 16  
+    );
+
+    vec3 sampleTex[9];
+    for(int i = 0; i < 9; i++)
+    {
+        sampleTex[i] = vec3(texture(texture1, TexCoords.st + offsets[i]));
+    }
+    vec3 col = vec3(0.0);
+    for(int i = 0; i < 9; i++)
+        col += sampleTex[i] * kernel[i];
+    
+    FragColor = vec4(col, 1.0);
+}
+";
+
+const FRAGMENT_CODE_KERN3: &str = "
+#version 330 core
+out vec4 FragColor;
+
+in vec2 TexCoords;
+
+uniform sampler2D texture1;
+
+const float offset = 1.0 / 300.0;
+
+void main()
+{    
+    vec2 offsets[9] = vec2[](
+        vec2(-offset,  offset), // top-left
+        vec2( 0.0f,    offset), // top-center
+        vec2( offset,  offset), // top-right
+        vec2(-offset,  0.0f),   // center-left
+        vec2( 0.0f,    0.0f),   // center-center
+        vec2( offset,  0.0f),   // center-right
+        vec2(-offset, -offset), // bottom-left
+        vec2( 0.0f,   -offset), // bottom-center
+        vec2( offset, -offset)  // bottom-right    
+    );
+
+    float kernel[9] = float[](
+        1, 1, 1,
+        1,-8, 1,
+        1, 1, 1
+    );
+    
+    vec3 sampleTex[9];
+    for(int i = 0; i < 9; i++)
+    {
+        sampleTex[i] = vec3(texture(texture1, TexCoords.st + offsets[i]));
+    }
+    vec3 col = vec3(0.0);
+    for(int i = 0; i < 9; i++)
+        col += sampleTex[i] * kernel[i];
+    
+    FragColor = vec4(col, 1.0);
 }
 ";
 
 pub struct DemoImpl {
     mvp: VSMatrices,
+    mvp2: VSMatrices,
     obj_cube: ModelWrapT,
     tex_cube: u32,
     obj_plane: ModelWrapT,
     obj_plane2: ModelWrapT,
     tex_plane: u32,
+    tex_plane_angle: f32,
+    angle_dx: f32,
     shader: Shaders,
-    quad_shader: Shaders,
+    quad_shaders: Vec<Shaders>,
+    shader_cnt: u32,
     frame_buffer: FrameBuffer,
     timer: Instant,
     first_logic_pass: bool,
@@ -107,13 +273,17 @@ impl DemoImpl {
     fn new() -> Self {
         DemoImpl {
             mvp: VSMatrices::default(),
+            mvp2: VSMatrices::default(),
             obj_cube: ModelWrapT::None,
             tex_cube: 0,
             obj_plane: ModelWrapT::None,
             obj_plane2: ModelWrapT::None,
             tex_plane: 0,
+            tex_plane_angle: 45.0,
+            angle_dx: 1.0,
             shader: Shaders::default(),
-            quad_shader: Shaders::default(),
+            quad_shaders: Default::default(),
+            shader_cnt: 0,
             frame_buffer: Default::default(),
             timer: Instant::now(),
             first_logic_pass: true,
@@ -140,7 +310,38 @@ impl DemoImpl {
 
         self.shader = Shaders::from_files(&system.gl, "./demo/demo15.vs", "./demo/demo15.fs")?;
 
-        self.quad_shader = Shaders::from_str(&system.gl, VERTEX_CODE, FRAGMENT_CODE)?;
+        self.quad_shaders
+            .push(Shaders::from_str(&system.gl, VERTEX_CODE, FRAGMENT_CODE)?);
+
+        self.quad_shaders.push(Shaders::from_str(
+            &system.gl,
+            VERTEX_CODE,
+            FRAGMENT_CODE_INV,
+        )?);
+
+        self.quad_shaders.push(Shaders::from_str(
+            &system.gl,
+            VERTEX_CODE,
+            FRAGMENT_CODE_GREYSCALE,
+        )?);
+
+        self.quad_shaders.push(Shaders::from_str(
+            &system.gl,
+            VERTEX_CODE,
+            FRAGMENT_CODE_KERN1,
+        )?);
+
+        self.quad_shaders.push(Shaders::from_str(
+            &system.gl,
+            VERTEX_CODE,
+            FRAGMENT_CODE_KERN2,
+        )?);
+
+        self.quad_shaders.push(Shaders::from_str(
+            &system.gl,
+            VERTEX_CODE,
+            FRAGMENT_CODE_KERN3,
+        )?);
 
         self.frame_buffer = FrameBuffer::new(&system.gl);
         self.frame_buffer.bind(&system.gl);
@@ -162,6 +363,17 @@ impl DemoImpl {
             self.timer = Instant::now();
 
             self.process_io(system);
+
+            self.tex_plane_angle += self.angle_dx;
+
+            if self.tex_plane_angle > 90.0 || self.tex_plane_angle < 20.0 {
+                self.angle_dx *= -1.0;
+            }
+
+            self.shader_cnt += 1;
+            if self.shader_cnt >= self.quad_shaders.len() as u32 * 300 {
+                self.shader_cnt = 0;
+            }
         }
 
         Ok(())
@@ -248,8 +460,12 @@ impl DemoImpl {
     fn render(&mut self, system: &system::System) -> Result<(), String> {
         self.mvp.view = self.camera.get_view_matrix();
 
+        ///////////////////////////////////////////////////////////
+        // Draw to framebuffer
+        ///////////////////////////////////////////////////////////
         self.frame_buffer.bind(&system.gl);
-        self.frame_buffer.clear(&system.gl);
+        self.frame_buffer
+            .clear(&system.gl, Vec4::new(0.2, 0.2, 0.2, 1.0));
 
         // Draw Plane
         self.mvp.model = Mat4::default();
@@ -272,7 +488,12 @@ impl DemoImpl {
 
         self.frame_buffer.unbind(&system.gl);
 
-        self.mvp.model = Mat4::default();
+        ///////////////////////////////////////////////////////////
+        // Draw to screen
+        ///////////////////////////////////////////////////////////
+        self.mvp2.model = Mat4::from_rotation_x(self.tex_plane_angle.to_radians());
+        let dz = self.tex_plane_angle.to_radians().sin() * 10.0 - 20.0;
+        self.mvp2.model.translate(&Vec3::new(0.0, 0.0, dz));
         self.draw_plane_from_fb_tex(&system.gl);
 
         Ok(())
@@ -280,6 +501,13 @@ impl DemoImpl {
 
     fn build_projection_matrix(&mut self, system: &system::System, fov_rad: f32) {
         self.mvp.projection = projection::rh_yup::perspective_gl(
+            fov_rad,
+            (system.w as f32) / (system.h as f32),
+            0.1,
+            100.0,
+        );
+
+        self.mvp2.projection = projection::rh_yup::perspective_gl(
             fov_rad,
             (system.w as f32) / (system.h as f32),
             0.1,
@@ -310,175 +538,18 @@ impl DemoImpl {
     }
 
     fn draw_plane_from_fb_tex(&mut self, gl: &gl33::GlFns) {
-        self.shader.use_program(gl);
+        let shader_i = self.shader_cnt / 300;
+        self.quad_shaders[shader_i as usize].use_program(gl);
         unsafe {
             gl.ActiveTexture(gl33::GL_TEXTURE0);
             gl.BindTexture(gl33::GL_TEXTURE_2D, self.frame_buffer.tex[0]);
         }
-        self.mvp.pass_uniforms(gl, &self.shader);
+        self.mvp2
+            .pass_uniforms(gl, &self.quad_shaders[shader_i as usize]);
 
-        self.obj_plane2.as_mut().unwrap().draw(gl, &self.shader);
-    }
-}
-
-#[derive(Default)]
-struct FrameBuffer {
-    bound: bool,
-    fbo: u32,
-    rbo: u32,
-    tex: Vec<u32>,
-}
-
-impl FrameBuffer {
-    fn new(gl: &GlFns) -> Self {
-        let mut fb = Self {
-            bound: false,
-            fbo: 0,
-            rbo: 0,
-            tex: Default::default(),
-        };
-        unsafe {
-            gl.GenFramebuffers(1, &mut fb.fbo);
-        }
-        fb
-    }
-
-    fn bind(&mut self, gl: &GlFns) {
-        unsafe {
-            gl.BindFramebuffer(gl33::GL_FRAMEBUFFER, self.fbo);
-        }
-        self.bound = true;
-    }
-
-    fn unbind(&mut self, gl: &GlFns) {
-        self.bound = false;
-        unsafe {
-            gl.BindFramebuffer(gl33::GL_FRAMEBUFFER, 0);
-        }
-    }
-
-    fn clear(&self, gl: &GlFns) {
-        unsafe {
-            gl.ClearColor(0.2, 0.1, 0.2, 1.0);
-            gl.Clear(gl33::GL_COLOR_BUFFER_BIT | gl33::GL_DEPTH_BUFFER_BIT); // we're not using the stencil buffer now
-            gl.Enable(gl33::GL_DEPTH_TEST);
-        }
-    }
-
-    fn attach_texture(&mut self, gl: &GlFns, w: usize, h: usize) -> u32 {
-        if !self.bound {
-            panic!("Call Self.bind() first!")
-        }
-        self.tex.push(0);
-        let tex = self.tex.last_mut().unwrap();
-        unsafe {
-            gl.GenTextures(1, &mut *tex);
-            gl.BindTexture(gl33::GL_TEXTURE_2D, *tex);
-            gl.TexImage2D(
-                gl33::GL_TEXTURE_2D,
-                0,
-                gl33::GL_RGB.0 as i32,
-                w as i32,
-                h as i32,
-                0,
-                gl33::GL_RGB,
-                gl33::GL_UNSIGNED_BYTE,
-                std::ptr::null(),
-            );
-
-            gl.TexParameteri(
-                gl33::GL_TEXTURE_2D,
-                gl33::GL_TEXTURE_MIN_FILTER,
-                gl33::GL_LINEAR.0 as i32,
-            );
-            gl.TexParameteri(
-                gl33::GL_TEXTURE_2D,
-                gl33::GL_TEXTURE_MAG_FILTER,
-                gl33::GL_LINEAR.0 as i32,
-            );
-            // unbind texture
-            gl.BindTexture(gl33::GL_TEXTURE_2D, 0);
-
-            gl.FramebufferTexture2D(
-                gl33::GL_FRAMEBUFFER,
-                gl33::GL_COLOR_ATTACHMENT0,
-                gl33::GL_TEXTURE_2D,
-                *tex,
-                0,
-            );
-        }
-        *self.tex.last().unwrap()
-    }
-
-    fn attach_depth_stencil(&mut self, gl: &GlFns, w: usize, h: usize) -> u32 {
-        if !self.bound {
-            panic!("Call Self.bind() first!")
-        }
-        self.tex.push(0);
-        let tex = self.tex.last_mut().unwrap();
-        unsafe {
-            gl.GenTextures(1, &mut *tex);
-            gl.BindTexture(gl33::GL_TEXTURE_2D, *tex);
-            gl.TexImage2D(
-                gl33::GL_TEXTURE_2D,
-                0,
-                gl33::GL_DEPTH24_STENCIL8.0 as i32,
-                w as i32,
-                h as i32,
-                0,
-                gl33::GL_DEPTH_STENCIL,
-                gl33::GL_UNSIGNED_INT_24_8,
-                std::ptr::null(),
-            );
-            gl.BindTexture(gl33::GL_TEXTURE_2D, 0);
-
-            gl.FramebufferTexture2D(
-                gl33::GL_FRAMEBUFFER,
-                gl33::GL_DEPTH_STENCIL_ATTACHMENT,
-                gl33::GL_TEXTURE_2D,
-                *tex,
-                0,
-            );
-        }
-        *self.tex.last().unwrap()
-    }
-
-    fn attach_render_buffer(&mut self, gl: &GlFns, w: usize, h: usize) {
-        if !self.bound {
-            panic!("Call Self.bind() first!")
-        }
-        unsafe {
-            gl.GenRenderbuffers(1, &mut self.rbo);
-            gl.BindRenderbuffer(gl33::GL_RENDERBUFFER, self.rbo);
-            gl.RenderbufferStorage(
-                gl33::GL_RENDERBUFFER,
-                gl33::GL_DEPTH24_STENCIL8,
-                w as i32,
-                h as i32,
-            );
-            gl.BindRenderbuffer(gl33::GL_RENDERBUFFER, 0);
-
-            gl.FramebufferRenderbuffer(
-                gl33::GL_FRAMEBUFFER,
-                gl33::GL_DEPTH_STENCIL_ATTACHMENT,
-                gl33::GL_RENDERBUFFER,
-                self.rbo,
-            );
-        }
-    }
-
-    fn check_success_or_panic(&self, gl: &GlFns) {
-        unsafe {
-            if gl.CheckFramebufferStatus(gl33::GL_FRAMEBUFFER) != gl33::GL_FRAMEBUFFER_COMPLETE {
-                panic!("framebuffer is not completed");
-            }
-        }
-    }
-
-    fn delete(&mut self, gl: &GlFns) {
-        unsafe {
-            gl.DeleteFramebuffers(1, &self.fbo);
-            self.fbo = 0;
-        }
+        self.obj_plane2
+            .as_mut()
+            .unwrap()
+            .draw(gl, &self.quad_shaders[shader_i as usize]);
     }
 }

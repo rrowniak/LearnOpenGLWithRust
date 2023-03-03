@@ -1,4 +1,5 @@
 pub mod camera;
+pub mod framebuffer;
 pub mod glutils;
 pub mod lights;
 pub mod models;
