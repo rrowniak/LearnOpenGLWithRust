@@ -313,35 +313,18 @@ impl DemoImpl {
         self.quad_shaders
             .push(Shaders::from_str(&system.gl, VERTEX_CODE, FRAGMENT_CODE)?);
 
-        self.quad_shaders.push(Shaders::from_str(
-            &system.gl,
-            VERTEX_CODE,
+        let shaders = [
             FRAGMENT_CODE_INV,
-        )?);
-
-        self.quad_shaders.push(Shaders::from_str(
-            &system.gl,
-            VERTEX_CODE,
             FRAGMENT_CODE_GREYSCALE,
-        )?);
-
-        self.quad_shaders.push(Shaders::from_str(
-            &system.gl,
-            VERTEX_CODE,
             FRAGMENT_CODE_KERN1,
-        )?);
-
-        self.quad_shaders.push(Shaders::from_str(
-            &system.gl,
-            VERTEX_CODE,
             FRAGMENT_CODE_KERN2,
-        )?);
-
-        self.quad_shaders.push(Shaders::from_str(
-            &system.gl,
-            VERTEX_CODE,
             FRAGMENT_CODE_KERN3,
-        )?);
+        ];
+
+        for fs in shaders {
+            self.quad_shaders
+                .push(Shaders::from_str(&system.gl, VERTEX_CODE, fs)?);
+        }
 
         self.frame_buffer = FrameBuffer::new(&system.gl);
         self.frame_buffer.bind(&system.gl);

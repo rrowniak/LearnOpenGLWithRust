@@ -47,18 +47,6 @@ const KEY_DOWN: u8 = 0x02;
 const KEY_LEFT: u8 = 0x04;
 const KEY_RIGHT: u8 = 0x08;
 
-// fn bit_is_set(flags: u8, flag: u8) -> bool {
-//     flags & flag != 0
-// }
-
-// fn bit_set(flags: &mut u8, flag: u8) {
-//     *flags |= flag
-// }
-
-// fn bit_unset(flags: &mut u8, flag: u8) {
-//     *flags &= !flag
-// }
-
 pub struct DemoImpl {
     shaders_mix: Shaders,
     vao: u32,
