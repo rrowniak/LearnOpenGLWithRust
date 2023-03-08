@@ -4,7 +4,7 @@ use crate::gfx::camera::{CamMovement, Camera};
 use crate::gfx::lights::VSMatrices;
 use crate::gfx::models::*;
 use crate::gfx::shaders::*;
-use crate::gfx::{glutils::*, system, system::IoEvents, utils::*};
+use crate::gfx::{glutils::*, matutils::Mat4Ext, system, system::IoEvents, utils::*};
 use std::time::Instant;
 use ultraviolet::*;
 
@@ -439,6 +439,10 @@ impl DemoImpl {
             self.draw_window(&system.gl);
         }
 
+        // better performance but stencil tests &
+        // transparency doesn't work (rendering order to be improved)
+        //self.draw_skybox(&system.gl);
+
         Ok(())
     }
 
@@ -455,6 +459,8 @@ impl DemoImpl {
     fn draw_skybox(&mut self, gl: &gl33::GlFns) {
         unsafe {
             gl.DepthMask(0);
+            // for rendering as a last element
+            // gl.DepthFunc(gl33::GL_LEQUAL);
         }
 
         self.shader_skybox.use_program(gl);
@@ -464,14 +470,7 @@ impl DemoImpl {
 
         // self.mvp.model = Default::default();
         self.mvp_skybox.model = Mat4::from_scale(10.0);
-        self.mvp_skybox.view[3][0] = 0.0;
-        self.mvp_skybox.view[3][1] = 0.0;
-        self.mvp_skybox.view[3][2] = 0.0;
-        self.mvp_skybox.view[3][3] = 1.0;
-        self.mvp_skybox.view[3][0] = 0.0;
-        self.mvp_skybox.view[3][1] = 0.0;
-        self.mvp_skybox.view[3][2] = 0.0;
-        // self.mvp_skybox.view[3][3] = 1.0;
+        self.mvp_skybox.view.remove_translation();
 
         self.mvp_skybox.pass_uniforms(gl, &self.shader_skybox);
         self.shader_skybox.set_i32(gl, "skybox", 0);
@@ -484,6 +483,8 @@ impl DemoImpl {
 
         unsafe {
             gl.DepthMask(1);
+            // for rendering as a last element
+            // gl.DepthFunc(gl33::GL_LESS);
         }
     }
 
