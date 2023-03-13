@@ -56,6 +56,7 @@ const KEY_END: u16 = 0b_0000_0000_1000_0000;
 const KEY_INS: u16 = 0b_0000_0001_0000_0000;
 const KEY_DEL: u16 = 0b_0000_0010_0000_0000;
 
+
 type ModelWrapT = Option<Box<Model>>;
 
 pub struct DemoImpl {
@@ -64,6 +65,9 @@ pub struct DemoImpl {
     tex_skybox: u32,
     obj_skybox: SimplestCubeObj,
     shader_skybox: Shaders,
+    obj_box_refl: NormTexCubeObj,
+    shader_refl: Shaders,
+    shader_refr: Shaders,
     obj_cube: ModelWrapT,
     tex_cube: u32,
     obj_plane: ModelWrapT,
@@ -194,6 +198,63 @@ void main()
 }
 ";
 
+const REFL_VS: &str = "
+#version 330 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aNormal;
+
+out vec3 Normal;
+out vec3 Position;
+
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+
+void main()
+{
+    Normal = mat3(transpose(inverse(model))) * aNormal;
+    Position = vec3(model * vec4(aPos, 1.0));
+    gl_Position = projection * view * model * vec4(aPos, 1.0);
+}
+";
+
+const REFL_FS: &str = "
+#version 330 core
+out vec4 FragColor;
+
+in vec3 Normal;
+in vec3 Position;
+
+uniform vec3 cameraPos;
+uniform samplerCube skybox;
+
+void main()
+{    
+    vec3 I = normalize(Position - cameraPos);
+    vec3 R = reflect(I, normalize(Normal));
+    FragColor = vec4(texture(skybox, R).rgb, 1.0);
+}
+";
+
+const REFR_FS: &str = "
+#version 330 core
+out vec4 FragColor;
+
+in vec3 Normal;
+in vec3 Position;
+
+uniform vec3 cameraPos;
+uniform samplerCube skybox;
+
+void main()
+{    
+    float ratio = 1.00 / 1.52;
+    vec3 I = normalize(Position - cameraPos);
+    vec3 R = refract(I, normalize(Normal), ratio);
+    FragColor = vec4(texture(skybox, R).rgb, 1.0);
+}
+";
+
 impl DemoImpl {
     fn new() -> Self {
         DemoImpl {
@@ -202,6 +263,9 @@ impl DemoImpl {
             tex_skybox: 0,
             obj_skybox: Default::default(),
             shader_skybox: Default::default(),
+            obj_box_refl: Default::default(),
+            shader_refl: Default::default(),
+            shader_refr: Default::default(),
             obj_cube: ModelWrapT::None,
             tex_cube: 0,
             obj_plane: ModelWrapT::None,
@@ -256,6 +320,7 @@ impl DemoImpl {
         self.obj_plane = ModelWrapT::Some(Box::new(setup_model_plane(DEFAULT_PLANE)));
         self.obj_grass = ModelWrapT::Some(Box::new(setup_model_plane(GRASS_QUAD)));
         self.obj_transparent = ModelWrapT::Some(Box::new(setup_model_plane(TRANSPARENT_QUAD)));
+        self.obj_box_refl = NormTexCubeObj::from(&system.gl, DEFAULT_POS_NORM_TEX_CUBE_VERT)?;
 
         // self.obj_skybox.as_mut().unwrap().setup(&system.gl)?;
         self.obj_cube.as_mut().unwrap().setup(&system.gl)?;
@@ -274,6 +339,9 @@ impl DemoImpl {
         ];
         self.tex_grass = load_texture_params(&system.gl, "./demo/grass.png", &params)?;
         self.tex_transparent = load_texture_params(&system.gl, "./demo/window.png", &params)?;
+
+        self.shader_refl = Shaders::from_str(&system.gl, REFL_VS, REFL_FS)?;
+        self.shader_refr = Shaders::from_str(&system.gl, REFL_VS, REFR_FS)?;
 
         self.shader_skybox = Shaders::from_str(&system.gl, SKYBOX_VS, SKYBOX_FS)?;
         self.shader = Shaders::from_files(&system.gl, "./demo/demo15.vs", "./demo/demo15.fs")?;
@@ -388,6 +456,16 @@ impl DemoImpl {
         self.mvp.model = Mat4::default();
         self.draw_plane(&system.gl);
 
+        // Draw cube refl
+        self.mvp.model = Mat4::default();
+        self.mvp.model.translate(&Vec3::new(-4.0, 0.0, -4.5));
+        self.draw_cube_refl(&system.gl);
+
+        // Draw cube refract
+        self.mvp.model = Mat4::default();
+        self.mvp.model.translate(&Vec3::new(-4.0, 0.0, 0.0));
+        self.draw_cube_refr(&system.gl);
+
         // Draw Cube
         self.mvp.model = Mat4::default();
         self.mvp.model.translate(&Vec3::new(0.0, 0.0, -4.5));
@@ -497,6 +575,42 @@ impl DemoImpl {
         self.mvp.pass_uniforms(gl, &self.shader);
 
         self.obj_plane.as_mut().unwrap().draw(gl, &self.shader);
+    }
+
+    fn draw_cube_refl(&mut self, gl: &gl33::GlFns) {
+        self.shader_refl.use_program(gl);
+        self.mvp.pass_uniforms(gl, &self.shader_refl);
+        self.shader_refl.set_i32(gl, "skybox", 0);
+        self.shader_refl.set_vec3(
+            gl,
+            "cameraPos",
+            self.camera.position.x,
+            self.camera.position.y,
+            self.camera.position.z,
+        );
+        unsafe {
+            gl.BindTexture(gl33::GL_TEXTURE_CUBE_MAP, self.tex_skybox);
+        }
+
+        self.obj_box_refl.draw(gl, 0);
+    }
+
+    fn draw_cube_refr(&mut self, gl: &gl33::GlFns) {
+        self.shader_refr.use_program(gl);
+        self.mvp.pass_uniforms(gl, &self.shader_refr);
+        self.shader_refr.set_i32(gl, "skybox", 0);
+        self.shader_refr.set_vec3(
+            gl,
+            "cameraPos",
+            self.camera.position.x,
+            self.camera.position.y,
+            self.camera.position.z,
+        );
+        unsafe {
+            gl.BindTexture(gl33::GL_TEXTURE_CUBE_MAP, self.tex_skybox);
+        }
+
+        self.obj_box_refl.draw(gl, 0);
     }
 
     fn draw_cube(&mut self, gl: &gl33::GlFns) {
