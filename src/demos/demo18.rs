@@ -68,6 +68,7 @@ pub struct DemoImpl {
     shader: Shaders,
     backpack: ModelWrapT,
     model_shader_explode: Shaders,
+    model_shader_normals: Shaders,
     shader_tick: f32,
     timer: Instant,
     first_logic_pass: bool,
@@ -85,6 +86,7 @@ impl DemoImpl {
             tex_plane: 0,
             backpack: ModelWrapT::None,
             model_shader_explode: Default::default(),
+            model_shader_normals: Default::default(),
             shader_tick: consts::PI / 2.0,
             shader: Shaders::default(),
             timer: Instant::now(),
@@ -117,6 +119,13 @@ impl DemoImpl {
             "./demo/demo18_geom.vs",
             "./demo/demo18_geom.fs",
             "./demo/demo18_geom.gs",
+        )?;
+
+        self.model_shader_normals = Shaders::from_files_full(
+            &system.gl,
+            "./demo/demo18_norm.vs",
+            "./demo/demo18_norm.fs",
+            "./demo/demo18_norm.gs",
         )?;
 
         self.shader = Shaders::from_files(&system.gl, "./demo/demo15.vs", "./demo/demo15.fs")?;
@@ -225,12 +234,12 @@ impl DemoImpl {
         self.mvp.model.translate(&Vec3::new(0.0, 0.0, 0.0));
         self.draw_cube(&system.gl);
 
-        // Draw backpack
+        // Draw exploded backpack
         self.model_shader_explode.use_program(&system.gl);
         self.model_shader_explode
             .set_f32(&system.gl, "time", self.shader_tick);
         self.mvp.model = Mat4::default();
-        self.mvp.model.translate(&Vec3::new(0.0, 2.0, -4.0));
+        self.mvp.model.translate(&Vec3::new(-3.0, 2.0, -4.0));
         self.mvp
             .pass_uniforms(&system.gl, &self.model_shader_explode);
 
@@ -238,6 +247,24 @@ impl DemoImpl {
             .as_mut()
             .unwrap()
             .draw(&system.gl, &self.model_shader_explode);
+
+        // Draw backpack with normals
+        self.mvp.model = Mat4::default();
+        self.mvp.model.translate(&Vec3::new(3.0, 2.0, -3.0));
+        self.shader.use_program(&system.gl);
+        self.mvp.pass_uniforms(&system.gl, &self.shader);
+        self.backpack
+            .as_mut()
+            .unwrap()
+            .draw(&system.gl, &self.shader);
+        // draw normals
+        self.model_shader_normals.use_program(&system.gl);
+        self.mvp
+            .pass_uniforms(&system.gl, &self.model_shader_normals);
+        self.backpack
+            .as_mut()
+            .unwrap()
+            .draw(&system.gl, &self.model_shader_normals);
 
         Ok(())
     }
