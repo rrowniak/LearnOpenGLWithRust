@@ -15,6 +15,15 @@ impl Shaders {
         vertex_file: &str,
         fragment_file: &str,
     ) -> Result<Shaders, String> {
+        Self::from_files_full(gl, vertex_file, fragment_file, "")
+    }
+
+    pub fn from_files_full(
+        gl: &GlFns,
+        vertex_file: &str,
+        fragment_file: &str,
+        geometry_file: &str,
+    ) -> Result<Shaders, String> {
         let vertex_code = match fs::read_to_string(vertex_file) {
             Ok(v) => v,
             Err(e) => return Err(format!("error reading {}: {}", vertex_file, e)),
@@ -25,10 +34,29 @@ impl Shaders {
             Err(e) => return Err(format!("error reading {}: {}", fragment_file, e)),
         };
 
-        Shaders::from_str(gl, vertex_code.as_str(), fragment_code.as_str())
+        let geometry_code = match fs::read_to_string(geometry_file) {
+            Ok(v) => v,
+            Err(_) => "".to_string(),
+        };
+
+        Shaders::from_str_full(
+            gl,
+            vertex_code.as_str(),
+            fragment_code.as_str(),
+            geometry_code.as_str(),
+        )
     }
 
     pub fn from_str(gl: &GlFns, vertex_code: &str, fragment_code: &str) -> Result<Shaders, String> {
+        Self::from_str_full(gl, vertex_code, fragment_code, "")
+    }
+
+    pub fn from_str_full(
+        gl: &GlFns,
+        vertex_code: &str,
+        fragment_code: &str,
+        geometry_code: &str,
+    ) -> Result<Shaders, String> {
         // create vertex shader
         let vertex_shader = gl.CreateShader(gl33::GL_VERTEX_SHADER);
         if vertex_shader == 0 {
@@ -53,6 +81,22 @@ impl Shaders {
         let shader_program = gl.CreateProgram();
         gl.AttachShader(shader_program, vertex_shader);
         gl.AttachShader(shader_program, fragment_shader);
+
+        let mut geometry_shader = 0;
+
+        if !geometry_code.is_empty() {
+            geometry_shader = gl.CreateShader(gl33::GL_GEOMETRY_SHADER);
+            if geometry_shader == 0 {
+                return Err("glCreateShader(GL_GEOMETRY_SHADER) failed".to_string());
+            }
+
+            if let Err(e) = Self::compile(gl, geometry_shader, geometry_code) {
+                return Err(format!("geometry shader compilation error: {}", e));
+            }
+
+            gl.AttachShader(shader_program, geometry_shader);
+        }
+
         gl.LinkProgram(shader_program);
 
         let mut success = 0;
@@ -75,6 +119,9 @@ impl Shaders {
         // not needed anymore
         gl.DeleteShader(vertex_shader);
         gl.DeleteShader(fragment_shader);
+        if geometry_shader != 0 {
+            gl.DeleteShader(geometry_shader);
+        }
 
         Ok(Shaders {
             program_id: shader_program,

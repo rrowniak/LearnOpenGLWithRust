@@ -11,7 +11,7 @@ fn main() {
     arg.next();
     let selected = match arg.next() {
         Some(a) => a,
-        None => "demo3".to_string(),
+        None => "demo18".to_string(),
     };
 
     let programs = get_all_demos();

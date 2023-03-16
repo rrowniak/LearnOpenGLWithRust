@@ -30,6 +30,7 @@ The following is a list of the currently implemented examples:
 - `demo15`: Covers depth testing, stencil testing, blending and face culling from the "Advanced OpenGL" section of the book.
 - `demo16`: Covers framebuffers and kernel affects from the "Advanced OpenGL" section of the book.
 - `demo17`: Covers cubemaps and environment mappings from the "Advanced OpenGL" section of the book.
+- `demo18`: Covers geometry shaders from the "Advanced OpenGL" section of the book.
 
 More coming soon!
 
