@@ -39,13 +39,13 @@ pub struct Mesh {
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u32>,
     pub textures: Vec<Texture>,
-    gl_vao: u32,
-    gl_vbo: u32,
-    gl_ebo: u32,
+    pub gl_vao: u32,
+    pub gl_vbo: u32,
+    pub gl_ebo: u32,
 }
 
 impl Mesh {
-    pub fn draw(&self, gl: &GlFns, shader: &Shaders) {
+    pub fn prepare_tex(&self, gl: &GlFns, shader: &Shaders) {
         let mut diffuse_nr = 1;
         let mut specular_nr = 1;
 
@@ -75,7 +75,10 @@ impl Mesh {
         unsafe {
             gl.ActiveTexture(GL_TEXTURE0);
         }
+    }
 
+    pub fn draw(&self, gl: &GlFns, shader: &Shaders) {
+        self.prepare_tex(gl, shader);
         // draw mesh
         gl.BindVertexArray(self.gl_vao);
         unsafe {
