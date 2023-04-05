@@ -33,6 +33,7 @@ The following is a list of the currently implemented examples:
 - `demo18`: Covers geometry shaders from the "Advanced OpenGL" section of the book.
 - `demo19`: Covers instancing from the "Advanced OpenGL" section of the book.
 ![Demo19 screenshot](doc/screen3.jpg)
+- `demo20`: Covers shadow mapping from the "Advanced Lighting" section of the book.
 
 More coming soon!
 

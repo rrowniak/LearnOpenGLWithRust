@@ -4,7 +4,7 @@ use std::ffi::CString;
 use std::fs;
 use ultraviolet::*;
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct Shaders {
     program_id: u32,
 }
