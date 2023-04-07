@@ -285,6 +285,19 @@ impl Shaders {
         }
     }
 
+    pub fn try_set_mat4fv_uv(&self, gl: &GlFns, name: &str, mat: &Mat4) {
+        unsafe {
+            let c_name = std::ffi::CString::new(name).unwrap();
+            let location = gl.GetUniformLocation(self.program_id, c_name.as_ptr().cast());
+
+            if location == -1 {
+                return;
+            }
+
+            gl.UniformMatrix4fv(location, 1, gl33::GL_FALSE.0 as u8, mat.as_slice().as_ptr());
+        }
+    }
+
     pub fn set_mat4fv_uv_cstr(&self, gl: &GlFns, name: &CString, mat: &Mat4) {
         let location = self.get_uniform_location_cstr(gl, name);
         unsafe {

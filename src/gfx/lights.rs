@@ -573,4 +573,9 @@ impl VSMatrices {
         shader.set_mat4fv_uv(gl, "model", &self.model);
         shader.set_mat4fv_uv(gl, "view", &self.view);
     }
+    pub fn try_pass_uniforms(&self, gl: &GlFns, shader: &Shaders) {
+        shader.try_set_mat4fv_uv(gl, "projection", &self.projection);
+        shader.try_set_mat4fv_uv(gl, "model", &self.model);
+        shader.try_set_mat4fv_uv(gl, "view", &self.view);
+    }
 }
